@@ -33,12 +33,3 @@ while (<>) {
 }
 print "</ol>\n";
 
-# Code rest
-#my (f1klm, f2) = (0,0);
-#	f1klm = 1 if (/Elmar\.Klausmeier.*Bookmarks/);
-#	f2bookm = 1 if (/id="bookmarklist"/);
-
-#	next if (f1klm + f2book < 2);
-
-#	print "<h4>" if (/<h4>/);
-
