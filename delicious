@@ -1,0 +1,44 @@
+#!/usr/bin/perl -W
+# Read export file from del.icio.us and extract HREF
+# Elmar Klausmeier, 30-Aug-2013
+
+use strict;
+my ($tags,$add_date);
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst);
+
+print "<ol>\n";
+
+while (<>) {
+	($add_date,$tags) = ("","");
+	chomp;
+	s/\s+$//;	# rtrim
+	#print substr($_,4) . "\n" if /^<DT><A HREF=/;
+	if (/^<DT><A HREF=/) {
+		s/^<DT>//;
+		s/<A HREF=/<a href=/;
+		s/<\/A>$/<\/a>/;
+		s/ PRIVATE="0"//;
+		$tags = $1 if (/TAGS="([ÄÖÜäöüß \w\-\+,]*)"/);
+		s/ TAGS="[ÄÖÜäöüß \w\-\+,]*"//;
+		if (/ ADD_DATE="(\d+)"/) {
+			$add_date = $1;
+			($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)
+				= localtime($add_date);
+			$add_date = sprintf("%02d-%02d-%04d", $mday,$mon+1,$year+1900);
+		}
+		s/ ADD_DATE="\d+"//;
+		#s/>(.+)<\/A>/><!\-\-raw\-\->$1<!\-\-\/raw\-\-><\/A>/;
+		print "<li>$_ ($tags), $add_date</li>\n";
+	}
+}
+print "</ol>\n";
+
+# Code rest
+#my (f1klm, f2) = (0,0);
+#	f1klm = 1 if (/Elmar\.Klausmeier.*Bookmarks/);
+#	f2bookm = 1 if (/id="bookmarklist"/);
+
+#	next if (f1klm + f2book < 2);
+
+#	print "<h4>" if (/<h4>/);
+
