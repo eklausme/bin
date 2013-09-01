@@ -1,0 +1,41 @@
+#!/usr/bin/perl -w
+# Print entries from iCalendar file which are greater than date
+# First parameter is date prefix.
+# Elmar Klausmeier, 16-Nov-2010
+# Elmar Klausmeier, 30-Aug-2013, 1st argument may have variable length
+
+
+use strict;
+
+my @stack = ();
+my ($beginv, $i, $flag) = (0,0,0);
+my $dtstart = shift;
+$dtstart = (length($dtstart) < 8) ?
+	$dtstart . substr("00000000",0,8 - length($dtstart)) : substr($dtstart,0,8);
+$dtstart = "DTSTART:${dtstart}T000000";
+
+print "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Judd Montgomery//NONSGML J-Pilot 1.8.1.1//EN\n";
+
+while (<>) {
+	next if (/^UID:/);
+	$beginv = 1 if (/^BEGIN:VEVENT/);
+	$beginv = 0 if (/^END:VEVENT/);
+
+	if ($beginv == 1) {
+		$stack[++$#stack] = $_;
+		#$flag = 1 if (/^DTSTART:${dtstart}/);
+		$flag = 1 if (/^DTSTART:/  &&  $_ ge $dtstart);
+	} elsif ($beginv == 0) {
+		if ($flag == 1) {
+			for ($i=0; $i<=$#stack; ++$i) {
+				print $stack[$i];
+			}
+			print;
+		}
+		$flag = 0;
+		@stack = ();
+	}
+}
+
+print "END:VCALENDAR\n";
+
