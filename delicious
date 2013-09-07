@@ -3,7 +3,7 @@
 # Elmar Klausmeier, 30-Aug-2013
 
 use strict;
-my ($tags,$add_date);
+my ($tags,$add_date,$prev,$out) = ("","","","");
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst);
 
 print "<ol>\n";
@@ -18,8 +18,8 @@ while (<>) {
 		s/<A HREF=/<a href=/;
 		s/<\/A>$/<\/a>/;
 		s/ PRIVATE="0"//;
-		$tags = $1 if (/TAGS="([ÄÖÜäöüß \w:\-\+,]*)"/);
-		s/ TAGS="[ÄÖÜäöüß \w:\-\+,]*"//;
+		$tags = $1 if (/TAGS="([ÄÖÜäöüßéèùçø \w:\@\/\(\)\#=\-\+\!\.,\']*)"/);
+		s/ TAGS="[ÄÖÜäöüßéèùçø \w:\@\/\(\)\#=\-\+\!\.,\']*"//;
 		if (/ ADD_DATE="(\d+)"/) {
 			$add_date = $1;
 			($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)
@@ -27,8 +27,9 @@ while (<>) {
 			$add_date = sprintf("%02d-%02d-%04d", $mday,$mon+1,$year+1900);
 		}
 		s/ ADD_DATE="\d+"//;
-		#s/>(.+)<\/A>/><!\-\-raw\-\->$1<!\-\-\/raw\-\-><\/A>/;
-		print "<li>$_ ($tags), $add_date</li>\n";
+		$out = "<li>$_ ($tags), $add_date</li>\n";
+		print $out if ($out ne $prev);
+		$prev = $out;	# store current output, to later compare with previous
 	}
 }
 print "</ol>\n";
