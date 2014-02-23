@@ -1,0 +1,60 @@
+#!/usr/bin/perl -W
+# Calculate seats in parliament according d'Hondt's method
+# Elmar Klausmeier, 22-Feb-2014
+
+use strict;
+use Getopt::Std;
+my %opts = ('d' => 0, 's' => 2);
+getopts('ds:',\%opts);
+my $s = (($opts{'s'} > 0) ? $opts{'s'} : 2);
+
+my (@F,@votes,@party,@seat,@calc,@divisor,$i,$j,$n,$max,$multi,@drawing);
+
+while (<>) {
+	@F = split;
+	push @party,$F[0];
+	push @votes,$F[1];
+	push @calc,$F[1];
+}
+
+print "Number of seats: $s\n";
+$n = $#votes;
+for ($i=0; $i<=$n; ++$i) {
+	print "\t$party[$i] - $votes[$i]\n";
+}
+
+# @votes does not need to be sorted in any way
+for ($i=0; $i<=$n; ++$i) {
+	($seat[$i],$divisor[$i]) = (0,1);
+}
+
+# $u is used seats so far
+for (my $u=0; $u<$s; ++$u) {
+	($max,$j) = ($calc[0],0);	# calculate maximum in @calc
+	$drawing[$multi=0] = 0;
+	for ($i=1; $i<=$n; ++$i) {
+		if ($calc[$i] > $max) {
+			($max,$j) = ($calc[$i],$i);
+			$drawing[$multi=0] = $i;
+		} elsif ($calc[$i] == $max) {
+			$drawing[++$multi] = $i;
+		}
+	}
+	#print "multi=$multi\n";
+	if ($u + $multi >= $s) {
+		printf("Drawing of lots for %d seats required for parties:", $s - $u);
+		for ($i=0; $i<=$multi; ++$i) {
+			print " $party[$drawing[$i]]";
+		}
+		print "\n";
+		last;
+	}
+	$seat[$j] += 1;
+	$divisor[$j] += 1;	# this is specific for d'Hondt
+	$calc[$j] = int($votes[$j] / $divisor[$j]);
+}
+
+for ($i=0; $i<=$n; ++$i) {
+	print "$party[$i] - $seat[$i]\n";
+}
+
