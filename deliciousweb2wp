@@ -1,0 +1,125 @@
+#!/usr/bin/perl -W
+# Read web-export from delicious.com and save it as WordPress posts-file
+# Elmar Klausmeier, 03-Jan-2015
+
+use strict;
+use POSIX qw(strftime);
+use Getopt::Std;
+
+my %opts = ('d' => 0, 'n' => 0, 'o' => 0);
+getopts('dn:o:',\%opts);
+my $n = (($opts{'n'} > 0) ? $opts{'n'} : 0);
+my $offset = (($opts{'o'} > 0) ? $opts{'o'} : 0);
+
+
+my ($flag,$links,$post_id) = (0,0,0);
+my $title = "";
+
+
+print << "EOF";
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+<title>Collected Links</title>
+<link>http://klmlinks.wordpress.com</link>
+<language>de</language>
+<wp:wxr_version>1.2</wp:wxr_version>
+<wp:author>
+  <wp:author_login>eklausmeier</wp:author_login>
+  <wp:author_email>Elmar.Klausmeier\@gmail.com</wp:author_email>
+  <wp:author_display_name><![CDATA[eklausmeier]]></wp:author_display_name>
+  <wp:author_first_name><![CDATA[]]></wp:author_first_name>
+  <wp:author_last_name><![CDATA[]]></wp:author_last_name>
+</wp:author>
+EOF
+
+while (<>) {
+	chomp;
+	s/\s+$//;	# rtrim
+
+	if ($flag > 0) {
+		s/\xE4/&auml;/g;	# klein ae
+		s/\xFC/&uuml;/g;	# klein ue
+		s/\xF6/&ouml;/g;	# klein oe
+		s/\xDF/&szlig;/g;	# szet
+		s/\xC4/&Auml;/g;	# Gross Ae
+		s/\xDC/&Uuml;/g;	# Gross Ue
+		s/\xD6/&Ouml;/g;	# Gross Oe
+		s/\xC9/&#233;/g;	# e apostophe
+		s/\xBB/&raquo;/g;	# right-pointing double angle quotation mark
+
+		s/\xC2\xAE/&copy;/g;	# copyright
+		s/\xE2\x84\xA2/&trade;/g;	# trademark
+		s/\xC3\xBC/&uuml;/g;	# klein ue
+		s/\xE2\x80\x99/'/g;	# apostroph
+		s/\xC3\xA4/&auml;/g;	# klein ae
+		s/\xE4\xA4/&auml;/g;	# klein ae
+		s/\xE4\xB6/&ouml;/g;	# klein oe
+		s/\xC3\xB6/&ouml;/g;	# klein oe
+		s/\xC3\x9C/&Uuml;/g;	# gross Ue
+		s/\xC3\x9F/&szlig;/g;	# szet
+		s/\xC2\xA0//g;	# backquote?
+		s/\xC3\xA9/&#233;/g;	# e apostophe
+		s/\xE4\xA9/&#233;/g;	# e apostophe
+		s/\xC3\xA8/&egrave;/g;	# e accent grave
+		s/ & / &amp; /g;	# ampersand
+	}
+
+	if (($flag == 0 || $flag == 3)  &&  /\s+<div class="title-wrapper">/) {	# signals to link
+		$flag = 1;
+		$title = "";
+		print "</item>\n" if ($links > 0);
+	} elsif ($flag == 1  &&  /<a href=/) {	# next line is a_href
+		$flag = 2;
+		++$links;	# count number of a_href's
+		$post_id = $offset + $links;
+		last if ($n > 0  &&  $links > $n);
+		s/^\s+//;	# strip space before a_href
+		$title = $1 if (/<a href=.+">(.*)<\/a>/);
+		s/ class="title"//;
+		print "<item>\n"
+			. "<title>$title</title>\n"
+		#	. "<pubDate>$add_date_rfc</pubDate>\n"
+			. "<dc:creator>eklausmeier</dc:creator>\n"
+			. "<description/>\n"
+			. "<content:encoded><![CDATA[$_\n";
+	} elsif ($flag == 2  &&  /<div class="note">/) {
+		s/\s+<div class="note">//g;
+		if (/<\/div>/) {
+			$flag = 3;
+			s/<\/div>//g;
+		}
+		print "$_]]></content:encoded>\n"
+			. "<wp:post_id>$post_id</wp:post_id>\n"
+			. "<wp:post_name>$title</wp:post_name>\n"
+			. "<wp:status>publish</wp:status>\n"
+			. "<wp:post_type>post</wp:post_type>\n"
+			. "<category domain=\"post_format\" nicename=\"post-format-link\"><![CDATA[Link]]></category>\n"
+			. "<category domain=\"category\" nicename=\"uncategorized\"><![CDATA[Uncategorized]]></category>\n";
+	} elsif ($flag == 3
+	&&  /<ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" data-tag="(.+)"/) {
+		my $tag = $1;
+		my $mtag = $tag;	# modified tag
+		$mtag =~ s/\s+/\-/g;	# replace space with dash
+		printf("<category domain=\"post_tag\" nicename=\"%s\"><![CDATA[%s]]></category>\n",
+			lc $mtag,$tag);
+	} elsif ($flag == 3
+	&&  /<time datetime="(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)/) {
+		my $add_date_ymd = $1;
+		$flag = 0;
+		$add_date_ymd =~ s/T/ /g;	# drop letter T
+		print "<wp:post_date>$add_date_ymd</wp:post_date>\n";
+	}
+}
+
+print "</item>\n" if ($n == 0);
+
+print << "EOF";
+</channel>
+</rss>
+EOF
+
