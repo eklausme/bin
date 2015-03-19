@@ -1,30 +1,42 @@
-#!/usr/bin/perl -w
-# Print entries from iCalendar file which are greater than date
-# First parameter is date prefix.
+#!/usr/bin/perl -W
+# Print entries from iCalendar file which are greater than start-
+# and lower than end-date.
+# Options:
+#	-s <date>	start date
+#	-e <date>	end date
 # Elmar Klausmeier, 16-Nov-2010
 # Elmar Klausmeier, 30-Aug-2013, 1st argument may have variable length
+# Elmar Klausmeier, 18-Mar-2015, allow start- and end-date arguments
 
 
 use strict;
+use Getopt::Std;
+
+my %opts;
+getopts('s:e:',\%opts);
+my ($dtstart,$dtend) = ("00000000","99999999");
+$dtstart = $opts{'s'} if (defined($opts{'s'}));
+$dtend = $opts{'e'} if (defined($opts{'e'}));
 
 my @stack = ();
 my ($beginv, $i, $flag) = (0,0,0);
-my $dtstart = shift;
 $dtstart = (length($dtstart) < 8) ?
 	$dtstart . substr("00000000",0,8 - length($dtstart)) : substr($dtstart,0,8);
 $dtstart = "DTSTART:${dtstart}T000000";
+$dtend = (length($dtend) < 8) ?
+	$dtend . substr("00000000",0,8 - length($dtend)) : substr($dtend,0,8);
+$dtend = "DTSTART:${dtend}T000000";
 
-print "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Judd Montgomery//NONSGML J-Pilot 1.8.1.1//EN\n";
+print "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Judd Montgomery//NONSGML J-Pilot 1.8.1.2//EN\n";
 
 while (<>) {
-	next if (/^UID:/);
+	next if (/^UID:/);	# Google does not need the UID, so drop it
 	$beginv = 1 if (/^BEGIN:VEVENT/);
 	$beginv = 0 if (/^END:VEVENT/);
 
 	if ($beginv == 1) {
 		$stack[++$#stack] = $_;
-		#$flag = 1 if (/^DTSTART:${dtstart}/);
-		$flag = 1 if (/^DTSTART:/  &&  $_ ge $dtstart);
+		$flag = 1 if (/^DTSTART:/  &&  $_ ge $dtstart  &&  $_ le $dtend);
 	} elsif ($beginv == 0) {
 		if ($flag == 1) {
 			for ($i=0; $i<=$#stack; ++$i) {
