@@ -1,0 +1,42 @@
+#!/bin/perl -W
+# Inhibit automatic merging in Simple Mobile Tools Contacts
+# Elmar Klausmeier, 10-May-2020
+
+use strict;
+my @singleCard = ();	# all info between BEGIN:VCARD and END:VCARD
+my ($name) = "";	# N: part, i.e., lastname semicolon firstname
+my ($clashes,$line,$org) = (0,"","");
+my %allCards = {};	# each entry is list of single cards belonging to same first and lastname, so hash of array of array
+
+while (<>) {
+	if (/BEGIN:VCARD/) {
+		($name,@singleCard) = ("", ());
+		push @singleCard, $_;
+	} elsif (/END:VCARD/) {
+		push @singleCard, $_;
+		push @{ $allCards{$name} }, [ @singleCard ];
+	} else {
+		push @singleCard, $_;
+		$name = $_ if (/^N:/);
+	}
+}
+
+for $name (keys %allCards) {
+	$clashes = $#{$allCards{$name}};
+	# printf("%s: %d\n", $name, $#{$allCards{$name}});
+	for my $sglCrd (@{$allCards{$name}}) {
+		if ($clashes == 0) {
+			for $line (@{$sglCrd}) { print $line; }
+		} else {
+			$org = "";
+			for $line (@{$sglCrd}) {
+				$org = $1 if ($line =~ /^ORG:([ \-\+\w]+)/);
+			}
+			for $line (@{$sglCrd}) {
+				$line =~ s/;/ \/${org}\/;/ if ($line =~ /^N:/);
+				print $line;
+			}
+		}
+	}
+}
+
