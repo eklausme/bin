@@ -1,0 +1,26 @@
+#!/bin/perl -W
+# Split vCard file into pieces such that Google Contacts can read it.
+# unfortunately, Google Contacts has a limit of 1,000 contacts per day.
+# Elmar Klausmeier, 08-May-2020
+
+use strict;
+use Getopt::Std;
+
+my %opts;
+getopts('n:',\%opts);
+my ($i,$k,$n) = (1,0,950);
+$n = ( defined($opts{'n'}) ? $opts{'n'} : 950 );
+
+open(F,">adr.$i.vcf") || die("Cannot open adr.$i.vcf for writing");
+while (<>) {
+	if (/BEGIN:VCARD/) {
+		if (++$k % $n == 0) {	# next address record
+			close(F) || die("Cannot close adr.$i.vcf");
+			++$i;	# next file number
+			open(F,">adr.$i.vcf") || die("Cannot open adr.$i.vcf for writing");
+		}
+	}
+	print F $_;
+}
+close(F) || die("Cannot close adr.$i.vcf");
+
