@@ -1,0 +1,24 @@
+#!/bin/perl -W
+# Print word concordances
+# Elmar Klausmeier, 03-Jun-2017
+
+use strict;
+
+my (%H,@F);
+
+
+while (<>) {
+	chomp;
+	s/\s+$//;	# rtrim
+	@F = split;
+	foreach my $w (@F) {
+		$w =~ s/^\s+//;	# ltrim
+		$w =~ s/\s+$//;	# rtrim
+		$H{$w} += 1;
+	}
+}
+
+foreach my $w (sort keys %H) {
+	printf("\t%6d\t%s\n",$H{$w},$w);
+}
+

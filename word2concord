@@ -1,0 +1,26 @@
+#!/bin/perl -W
+# Print double-word concordances
+# Elmar Klausmeier, 03-Jun-2017
+
+use strict;
+
+my (%H,@F);
+
+
+while (<>) {
+	chomp;
+	s/\s+$//;	# rtrim
+	@F = split;
+	for(my $i=0; $i<$#F; ++$i) {
+		$F[$i] =~ s/^\s+//;	# ltrim
+		$F[$i] =~ s/\s+$//;	# rtrim
+		$F[$i+1] =~ s/^\s+//;	# ltrim
+		$F[$i+1] =~ s/\s+$//;	# rtrim
+		$H{$F[$i] . " " . $F[$i+1]} += 1;
+	}
+}
+
+foreach my $w (sort keys %H) {
+	printf("\t%6d\t%s\n",$H{$w},$w);
+}
+
