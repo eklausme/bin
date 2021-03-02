@@ -1,0 +1,54 @@
+#!/bin/perl -W
+# Generate address- or datebook-file for J-Pilot in CSV-format.
+# It is for testing J-Pilot with "mass"-data.
+# Example use:
+#      palmgencsv -an1000   generates 1000 addresse entries
+#      palmgencsv -d        generates 10 date entries
+#
+# Elmar Klausmeier, 01-Mar-2021
+
+use strict;
+
+use Getopt::Std;
+my %opts = ('a' => 0, 'd' => 0,'n' => 10);
+getopts('adn:',\%opts);
+my $flag = 2 * $opts{'a'} + $opts{'d'};
+$flag = 2 if ($flag == 0);	# set default to address
+my $n = $opts{'n'};
+my $i;
+
+#printf("flag=%d, opts-a=%d, opts-d=%d\n",$flag,$opts{'a'},$opts{'d'});
+
+if ($flag & 0x02) {
+	# Each address-record has 27 elements
+	print "CSV address version 1.8.2: Category, Private, Last name, First name, Title, Company, Phone 0 label, Phone 0, Phone 1 label, Phone 1,"
+	. " Phone 2 label, Phone 2, Phone 3 label, Phone 3, Phone 4 label, Phone 4, Addr(W), City, State, Zip Code,"
+	. " Country, UserId, Custom 2, Birthday, Custom 4, Note, Show in List\n";
+
+	for ($i=1; $i<=$n; ++$i) {
+		printf("\"Cat%02d\",\"%d\",\"Last%d\",\"First%d\",\"%s\",\"Company%02d\",\"%s\",\"+49-%07d\",\"%s\",\"%s\","
+			."\"%s\",\"%s\",\"%s\",\"+49-171-%07d\",\"%s\",\"A%05d\@A.com\",\"Street %d\",\"%s\",\"%s\",\"%s\","
+			."\"%s\",\"u%04d\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+		$i%8,0,$i,$i,"M.Sc.",$i%12,"Work",$i,"Home","",
+		"Fax","","Mobile",$i,"E-mail",$i%10000,$i%99,"Frankfurt","Hesse","60486",
+		"Germany",$i,"","13-Mar-1964","","","0"
+		);
+	}
+} elsif ($flag & 0x01) {
+	# Each date record has 19 elements
+	print "CSV datebook version 1.8.2: Category, Private, Description, Note, Event, Begin, End, Alarm, Advance, Advance Units,"
+	. " Repeat Type, Repeat Forever, Repeat End, Repeat Frequency, Repeat Day, Repeat Days, Week Start, Number of Exceptions, Exceptions\n";
+	my $t = time();	# curent date/time in seconds since epoch
+	for ($i=1; $i<=$n; ++$i) {
+		#     0    1    2     3     4    5     6     7     8
+		my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($t - ($i-1)*86400);
+		my $dt = sprintf("%04d %02d %02d",$year+1900,$mon+1,$mday);
+		printf("\"%s\",\"%d\",\"Event %d\",\"%s\",\"%s\",\"%s  10:00\",\"%s  11:00\",\"%s\",\"%s\",\"%s\","
+			."\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+		"",0,$i,"","0",$dt,$dt,"0","0","0",
+		"0","0","1970 01 01","0","0","0","0","0",""
+		);
+	}
+}
+
+
