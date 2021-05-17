@@ -1,0 +1,74 @@
+#!/bin/perl -W
+# Create RSS XML file ("feed") based on Markdown files
+# Elmar Klausmeier, 11-May-2021: Initial simple version with no <description>
+# Elmar Klausmeier, 16-May-2021: Added <description> handling
+#
+# Input: List of Markdown files (order of files determines order of <item>))
+# Output: RSS (description with 3 lines of Markdown as excerpt)
+#
+# Example:
+#      mkdwnrss `find blog/2021 -type f | sort -r`
+
+use strict;
+
+my $dt = localtime();
+print <<"EOT";
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+	<title>Elmar Klausmeier's Blog</title>
+	<description>Elmar Klausmeier's Blog</description>
+	<lastBuildDate>$dt</lastBuildDate>
+	<link>https://eklausmeier.goip.de</link>
+	<atom:link href="https://eklausmeier.goip.de/feed.xml" rel="self" type="application/rss+xml" />
+	<generator>mkdwnrss</generator>
+
+EOT
+
+
+sub item(@) {
+	my $f = $_[0];
+	open(F,"< $f") || die("Cannot open $f");
+
+	my $link = $f;
+	$link =~ s/\.md$/\//;
+	print "\t<item>\n"
+	. "\t\t<link>https://eklausmeier.goip.de/$link</link>\n"
+	. "\t\t<guid>https://eklausmeier.goip.de/$link</guid>\n";
+
+	my ($sep,$linecnt,$excerpt) = (0,0,"");
+	while (<F>) {
+		chomp;
+		if (/^\-\-\-$/) { $sep++ ; next; }
+		if ($sep == 1) {
+			if (/^title:\s+"(.+)"$/) {
+				printf("\t\t<title>%s</title>\n",$1);
+			} elsif (/^date:\s+"(.+)"$/) {
+				printf("\t\t<pubDate>%s</pubDate>\n",$1);
+			}
+		} elsif ($sep >= 2) {
+			next if (length($_) == 0);
+			if ($linecnt++ == 0) {
+				print "\t\t<description><![CDATA[";
+				$excerpt = $_;
+			} elsif ($linecnt < 9 || length($excerpt) < 500) {
+				$excerpt .= " " . $_;
+			} else {
+				last;
+			}
+		}
+	}
+	print $excerpt . "]]></description>\n" if ($linecnt > 0);
+	print "\t</item>\n";
+
+	close(F) || die("Cannot close $f");
+}
+
+
+while (<@ARGV>) {
+	item($_);
+}
+
+
+print "</channel>\n</rss>\n";
+
