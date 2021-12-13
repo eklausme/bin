@@ -1,0 +1,95 @@
+#!/bin/perl -W
+# Filter Hiawatha access.log file, according:
+#  1. Certain IP's
+#  2. not found errors + redirects etc.
+#  3. bots
+#
+# Elmar Klausmeier, 29-Nov-2021
+# Elmar Klausmeier, 04-Dec-2021: added crawlers, no longer split $F[6] at '-'
+# Elmar Klausmeier, 10-Dec-2021: added IPs for robots.txt reader, added getopt + statistics
+
+use strict;
+
+use Getopt::Std;
+my %opts = ();
+getopts('o:',\%opts);
+my $statout = (defined($opts{'o'}) ? $opts{'o'} : undef);
+my ($emptyUA,$badURL,$smallUA) = (0,0,0);
+
+
+my %ips = (
+	'18.212.118.57' => 0, '18.232.89.176' => 0, '3.94.81.106' => 0,
+	'34.239.184.105' => 0, '54.80.126.99' => 0, '54.162.60.209' => 0,	# compute-1.amazonaws.com
+	'62.138.2.14' => 0, '62.138.2.214' => 0, '62.138.2.160' => 0,
+	'62.138.3.52' => 0, '62.138.6.15' => 0, '85.25.210.23' => 0,	# startdedicated.de
+	'66.240.192.138' => 0, '66.240.219.133' => 0, '66.240.219.146' => 0, '66.240.236.119' => 0,
+	'71.6.135.131' => 0, '71.6.146.185' => 0, '71.6.158.166' => 0, '71.6.165.200' => 0,
+	'71.6.167.142' => 0, '71.6.199.23' => 0, '80.82.77.33' => 0, '80.82.77.139' => 0,
+	'82.221.105.6' => 0, '82.221.105.7' => 0,	# shodan.io
+	'138.246.253.24' => 0, '106.55.250.60' => 0,	# various robots.txt reader
+	'127.0.0.1' => 0,	# localhost
+	'192.168.178.2' => 0, '192.168.178.20' => 0, '192.168.178.24' => 0,
+	'192.168.178.118' => 0, '192.168.178.249' => 0	# local network
+);
+my %errorCode = ( 301 => 0, 302 => 0, 400 => 0, 403 => 0, 404 => 0, 405 => 0, 500 => 0, 501 => 0, 503 => 0, 505 => 0 );
+my %bots = (
+	adsbot => 0, adscanner => 0, ahrefsbot => 0, applebot => 0, 'archive.org_bot' => 0,
+	baiduspider => 0, bingbot => 0, blexbot => 0,
+	ccbot => 0, censysinspect => 0,
+	'clark-crawler2' => 0, crawler => 0, crawler2 => 0, 'crawler.php' => 0,
+	criteobot => 0, curl => 0,
+	dataforseobot => 0, dotbot => 0, 'feedsearch-crawler' => 0,
+	facebookexternalhit => 0, fluid => 0, 'go-http-client' => 0,
+	googlebot => 0, ioncrawl => 0, lighthouse => 0, ltx71 => 0,
+	mediapartners => 0, 'mediapartners-google' => 0,
+	netestate => 0, nuclei => 0, nicecrawler => 0, petalbot => 0,
+	proximic => 0, 'pulsepoint-ads.txt-crawler' => 0, 'python-requests' => 0,
+	semrushbot => 0, 'semrushbot-ba' => 0, sitecheckerbotcrawler => 0, sitelockspider => 0,
+	twitterbot => 0, ucrawl => 0,
+	virustotal => 0, 'web-crawler' => 0, 'webmeup-crawler' => 0,
+	'x-fb-crawlerbot' => 0, yandexbot => 0,
+);
+
+# Hiawatha log format:
+#   1. host
+#   2. date
+#   3. code
+#   4. size
+#   5. URL
+#   6. referer
+#   7. user agent
+
+W: while (<>) {
+	my @F = split /\|/;
+	if (defined($ips{$F[0]})) { $ips{$F[0]} += 1; next; }
+	if ($#F <= 5) { $emptyUA += 1; next; }
+	if (defined($errorCode{$F[2]})) { $errorCode{$F[2]} += 1; next; }	# not found errors are ignored
+	if ($F[4] =~ /XDEBUG_SESSION_START|HelloThink(CMF|PHP)/) { $badURL += 1; next; }
+	if ($#F >= 6) {	# Is UA field available?
+		if (length($F[6]) <= 3) { $smallUA += 1; next W; }
+		for ( split(/[ :;,\/\(\)\@]/,lc $F[6]) ) {
+			if (defined($bots{$_})) { $bots{$_} += 1; next W; } 	# skip bots
+		} 
+	} 
+	print;
+}
+
+if (defined($statout)) {
+	open(F,">$statout") || die("Cannot write to $statout");
+	for (sort keys %ips) {
+		next if ($ips{$_} == 0);
+		printf(F "IP\t%d\t%s\n",$ips{$_},$_);
+	}
+	printf(F "eUA\t%d\n",$emptyUA);
+	printf(F "badURL\t%d\n",$badURL);
+	for (sort keys %errorCode) {
+		next if ($errorCode{$_} == 0);
+		printf(F "code\t%d\t%d\n",$errorCode{$_},$_);
+	}
+	printf(F "sUA\t%d\n",$smallUA);
+	for (sort keys %bots) {
+		next if ($bots{$_} == 0);
+		printf(F "bot\t%d\t%s\n",$bots{$_},$_);
+	}
+}
+
