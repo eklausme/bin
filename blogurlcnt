@@ -1,0 +1,185 @@
+#!/bin/perl -W
+# Count number of times a URL was hit. Input is Hiawatha access log file.
+# Show tabular results using Datatables JavaScript, show bar charts via Apache ECharts.
+#
+# Hiawatha log format:
+#   1. host
+#   2. date
+#   3. code
+#   4. size
+#   5. URL
+#   6. referer
+#   7. user agent
+#
+# Elmar Klausmeier, 04-Dec-2021
+
+use strict;
+use Time::Local;
+use POSIX qw(strftime);
+
+my $nx = 0;	# number of entries in ecoption[] array
+my %monthNum = (
+	'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4,
+	'May' => 5, 'Jun' => 6, 'Jul' => 7, 'Aug' => 8,
+	'Sep' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12
+);
+my %H;	# hash: method+URL+protocol is key
+my %hist;	# histogram: year+week is key
+
+
+print << "EOF";
+<html>
+	<link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel=stylesheet />
+	<style>
+		.histogram { height:400px; width:400px; }
+	</style>
+<body>
+<h1>URL Count</h1>
+<table id="urlcnt" class="display"></table>
+<table><tr>
+	<td><div class="histogram" id="container1"></div>
+	<td><div class="histogram" id="container2"></div>
+	<td><div class="histogram" id="container3"></div>
+</table>
+</body>
+
+<!-- Datatables -->
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+
+<!-- Apache ECharts -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts\@5.2.2/dist/echarts.min.js"></script>
+
+<script type="text/javascript">
+function d(i) {	// we keep this function name short as it is used thousands of times in HTML table
+	let i3 = 3 * i;
+	if (ecoption[0] && typeof ecoption[0] === 'object') { myChart1.setOption(ecoption[i3]); }
+	if (ecoption[1] && typeof ecoption[1] === 'object') { myChart2.setOption(ecoption[i3+1]); }
+	if (ecoption[2] && typeof ecoption[2] === 'object') { myChart3.setOption(ecoption[i3+2]); }
+	return false;	// see: https://stackoverflow.com/questions/1070760/javascript-function-in-href-vs-onclick
+}
+
+let ecoption = [];
+/*
+{	// year
+	xAxis: { type: 'category', data: [] },
+	yAxis: { type: 'value' },
+	series: [ { data: [], type: 'bar' } ]
+},
+{	// year/month
+	xAxis: { type: 'category', data: [] },
+	yAxis: { type: 'value' },
+	series: [ { data: [], type: 'bar' } ]
+},
+{	// year/week
+	xAxis: { type: 'category', data: [] },
+	yAxis: { type: 'value' },
+	series: [ { data: [], type: 'bar' } ]
+}];
+*/
+
+var urlFrequency = [
+EOF
+
+while (<>) {
+	my @F = split /\|/;
+	next if ($#F < 4);	# need URL at least
+	my ($wday,$day,$monthName,$year,$hms,$dl) = split(/ /,$F[1]);
+	my $month = $monthNum{$monthName};
+	my $epoch = timelocal( 0, 0, 0, $day, $month-1, $year-1900 );
+	my $week  = strftime("%U",localtime($epoch));
+	my ($yearweek,$yearmonth) = ("$year/$week","$year/$month");
+	$hist{$yearweek} += 1;
+	# Special handling for Elmar Klausmeier's blog
+	$F[4] =~ s/^GET \/(blog|music|jpilot)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
+	my $p = \$H{$F[4]};
+	if (defined($$p)) {
+		$$p->[0] += 1;
+		$$p->[1] += $F[3];
+		#$$p->[2]{$year} += 1;
+		#$$p->[3]{$yearmonth} += 1;
+		#$$p->[4]{$yearweek} += 1;
+		my $q = $$p->[2];
+		if ($q->[$#{$q}][0] eq $year) { $q->[$#{$q}][1] += 1; }
+		else { push $q->@*,[$year,1]; }
+		$q = $$p->[3];
+		if ($q->[$#{$q}][0] eq $yearmonth) { $q->[$#{$q}][1] += 1; }
+		else { push $q->@*,[$yearmonth,1]; }
+		$q = $$p->[4];
+		if ($q->[$#{$q}][0] eq $yearweek) { $q->[$#{$q}][1] += 1; }
+		else { push $q->@*,[$yearweek,1]; }
+	} else {
+		#$H{$F[4]} = [ 1, $F[3], {$year=>1}, {$yearmonth=>1}, {$yearweek=>1} ];
+		$H{$F[4]} = [ 1, $F[3], [[$year,1]], [[$yearmonth,1]], [[$yearweek,1]], $nx++ ];
+	}
+}
+
+for my $f4 (keys %H) {
+	my ($meth,$url,$prot) = split(/ /,$f4);
+	my $displayURL = (length($url) > 95) ? substr($url,0,90).'...'.substr($url,-5) : $url;
+	printf("\t['<a href=\"#\" onclick=\"return d(%d);\">%d</a>',%d,'%s','%s','<a href=\\\".%s\\\">%s</a>'],\n",
+		$H{$f4}[5],$H{$f4}[0],$H{$f4}[1],$meth,$prot,$url,$displayURL);
+}
+printf("];\n\n");
+
+#my $pH = \$H{'GET /blog/ HTTP/1.1'};
+#printf("// length=%d, |%s|\n",$#{$$pH},$$pH->[2][0][0]);
+for my $murlp (keys %H) {
+	my $pH = \$H{$murlp};
+	my $i3 = 3 * $$pH->[5];
+	for (my $j=0; $j<3; ++$j) {
+		printf("ecoption[%d] = {\n"
+		."	xAxis:{type:'category', data:[",$i3+$j);
+		#printf("ecoption[%d].xAxis.data = [",$j);
+		for (@{$$pH->[2+$j]}) {	# x-values
+			printf("'%s',",$_->[0]);	# luckily JS allows dangling commas
+		}
+		#printf(" ];\n");
+		#printf("ecoption[%d].series[0].data = [",$j);
+		printf("]},\n"
+		."	yAxis: {type:'value'},\n"
+		."	series: [{data:[");
+		for (@{$$pH->[2+$j]}) {	# y-values
+			printf("'%s',",$_->[1]);	# luckily JS allows dangling commas
+		}
+		printf("], type:'bar'}]\n};\n");
+		#printf(" ];\n");
+	}
+}
+
+print << "EOF";
+
+\$(document).ready(function() {
+	\$('#urlcnt').DataTable( {
+	data: urlFrequency,
+	columns: [
+		{ title: "Hits" },
+		{ title: "TX" },
+		{ title: "Method" },
+		{ title: "Protocol" },
+		{ title: "URL" }
+	],
+	order: [[ 0, "desc" ]],
+	lengthMenu: [ 10, 20, 50, 100, 150, -1 ]
+	} );
+} );
+
+// Apache ECharts
+var dom1 = document.getElementById("container1");
+var myChart1 = echarts.init(dom1);
+var dom2 = document.getElementById("container2");
+var myChart2 = echarts.init(dom2);
+var dom3 = document.getElementById("container3");
+var myChart3 = echarts.init(dom3);
+var app = {};
+
+d(0);
+
+</script>
+
+</html>
+
+
+EOF
+
+
