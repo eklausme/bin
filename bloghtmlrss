@@ -1,0 +1,91 @@
+#!/bin/perl -W
+# Create RSS XML file ("feed") from Saaze generated HTML files
+#
+# Input: List of HTML files (order of files determines order of <item>))
+# Output: RSS
+#
+# Example:
+#      bloghtmlrss `find blog/2021 -name index.html | sort -r`
+#
+# Elmar Klausmeier, 27-Jul-2021
+
+use strict;
+use POSIX qw(strftime);
+use POSIX qw(mktime);
+
+my $dt = strftime("%a, %d %b %Y %H:%M:%S GMT",gmtime());	# RFC-822 format: Wed, 02 Oct 2002 13:00:00 GMT
+print <<"EOT";
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+	<title>Elmar Klausmeier's Blog</title>
+	<description>Elmar Klausmeier's Blog</description>
+	<lastBuildDate>$dt</lastBuildDate>
+	<link>https://eklausmeier.goip.de</link>
+	<atom:link href="https://eklausmeier.goip.de/feed.xml" rel="self" type="application/rss+xml" />
+	<generator>bloghtmlrss</generator>
+
+EOT
+
+my %monthNr = (	# Convert full month name to month-number minus one
+	"January" => 0, "February" => 1, "March" => 2, "April" => 3,
+	"May" => 4, "June" => 5, "July" => 6, "August" => 7,
+	"September" => 8, "October" => 9, "November" => 10, "December" => 11
+);
+
+sub item(@) {
+	my $f = $_[0];
+	return if ($f =~ /\/\d{4}\/index\.html$/);	# ignore .../2021/index.html etc.
+	open(F,"< $f") || die("Cannot open $f");
+
+	my $link = $f;
+	$link =~ s/index\.html$//;
+	print "\t<item>\n"
+	. "\t\t<link>https://eklausmeier.goip.de/$link</link>\n"
+	. "\t\t<guid>https://eklausmeier.goip.de/$link</guid>\n";
+
+	my ($dt,$year,$month,$day,$hour,$minute,$sec);
+	my ($title,$linecnt) = (0,0);
+	while (<F>) {
+		chomp;
+		if (/^<h1.*?>(.+?)<\/h1>/) {
+			printf("\t\t<title>%s</title>\n",$1);
+			$title = 1;
+		} elsif (/^\s*<p class=.+?>(\d+)..\s+(\w+)\s+(\d\d\d\d)<\/p>/) {
+			($year,$month,$day,$hour,$minute,$sec) = ($3,$monthNr{$2},$1,12,0,0);
+			# RFC-822 format: Wed, 02 Oct 2002 13:00:00 GMT
+			$dt = strftime("%a, %d %b %Y %H:%M:%S GMT",$sec,$minute,$hour,$day,$month,$year-1900);
+			printf("\t\t<pubDate>%s</pubDate>\n",$dt);
+		} elsif ($title) {
+			if ($linecnt++ == 0) {
+				print "\t\t<description><![CDATA[\n";
+			}
+			last if (/^\t<footer>/);
+			s/<a href="\.\.\/\.\.\/\.\.\//<a href="https:\/\/eklausmeier\.goip\.de\//g;
+			s/<a href="\.\.\/\.\.\/2/<a href="https:\/\/eklausmeier\.goip\.de\/blog\/2/g;
+			s/<img src="\.\.\/\.\.\/\.\.\/img\//<img src="https:\/\/eklausmeier\.goip\.de\/img\//g;
+			print $_ . "\n";
+		}
+	}
+	# Did not help to show Math or colorized source code in RSS
+	#	<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+	#	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax\@3/es5/tex-mml-chtml.js"></script>
+	#	<script src="https://unpkg.com/prismjs\@v1.24.0/components/prism-core.min.js"></script>
+	#	<script src="https://unpkg.com/prismjs\@v1.24.0/plugins/autoloader/prism-autoloader.min.js"></script>
+	#	<script src="https://unpkg.com/prismjs\@v1.24.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+	print << "EOT";
+		]]></description>
+	</item>
+EOT
+
+	close(F) || die("Cannot close $f");
+}
+
+
+while (<@ARGV>) {
+	item($_);
+}
+
+
+print "</channel>\n</rss>\n";
+
