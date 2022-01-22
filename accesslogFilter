@@ -18,7 +18,7 @@ my ($emptyUA,$badURL,$smallUA) = (0,0,0);
 
 
 my %ips = (
-	'18.212.118.57' => 0, '18.232.89.176' => 0, '3.94.81.106' => 0,
+	'3.219.212.117' => 0, '18.212.118.57' => 0, '18.232.89.176' => 0, '3.94.81.106' => 0,
 	'34.239.184.105' => 0, '54.80.126.99' => 0, '54.162.60.209' => 0,	# compute-1.amazonaws.com
 	'62.138.2.14' => 0, '62.138.2.214' => 0, '62.138.2.160' => 0,
 	'62.138.3.52' => 0, '62.138.6.15' => 0, '85.25.210.23' => 0,	# startdedicated.de
@@ -33,18 +33,22 @@ my %ips = (
 );
 my %errorCode = ( 301 => 0, 302 => 0, 400 => 0, 403 => 0, 404 => 0, 405 => 0, 500 => 0, 501 => 0, 503 => 0, 505 => 0 );
 my %bots = (
-	adsbot => 0, adscanner => 0, ahrefsbot => 0, applebot => 0, 'archive.org_bot' => 0,
+	'{jndi' => 0,
+	adsbot => 0, adscanner => 0, ahrefsbot => 0,
+	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0,
 	baiduspider => 0, bingbot => 0, blexbot => 0,
-	ccbot => 0, censysinspect => 0,
+	ccbot => 0, censysinspect => 0, 'chrome-lighthouse' => 0,
 	'clark-crawler2' => 0, crawler => 0, crawler2 => 0, 'crawler.php' => 0,
 	criteobot => 0, curl => 0,
-	dataforseobot => 0, dotbot => 0, 'feedsearch-crawler' => 0,
-	facebookexternalhit => 0, fluid => 0, 'go-http-client' => 0,
-	googlebot => 0, ioncrawl => 0, lighthouse => 0, ltx71 => 0,
-	mediapartners => 0, 'mediapartners-google' => 0,
-	netestate => 0, nuclei => 0, nicecrawler => 0, petalbot => 0,
+	dareboost => 0, dataforseobot => 0, dotbot => 0,
+	facebookexternalhit => 0, 'feedsearch-crawler' => 0, fluid => 0,
+	'go-http-client' => 0, googlebot => 0,
+	ioncrawl => 0, l9explore => 0, lighthouse => 0, ltx71 => 0,
+	masscan => 0, 'masscan-ng' => 0, mediapartners => 0, 'mediapartners-google' => 0,
+	netestate => 0, nuclei => 0, nicecrawler => 0, petalbot => 0, pingdompagespeed => 0,
 	proximic => 0, 'pulsepoint-ads.txt-crawler' => 0, 'python-requests' => 0,
-	semrushbot => 0, 'semrushbot-ba' => 0, sitecheckerbotcrawler => 0, sitelockspider => 0,
+	scaninfo => 0, screaming => 0, semrushbot => 0, 'semrushbot-ba' => 0,
+	seocompany => 0, seolyt => 0, sitecheckerbotcrawler => 0, sitelockspider => 0,
 	twitterbot => 0, ucrawl => 0,
 	virustotal => 0, 'web-crawler' => 0, 'webmeup-crawler' => 0,
 	'x-fb-crawlerbot' => 0, yandexbot => 0,
@@ -67,7 +71,7 @@ W: while (<>) {
 	if ($F[4] =~ /XDEBUG_SESSION_START|HelloThink(CMF|PHP)/) { $badURL += 1; next; }
 	if ($#F >= 6) {	# Is UA field available?
 		if (length($F[6]) <= 3) { $smallUA += 1; next W; }
-		for ( split(/[ :;,\/\(\)\@]/,lc $F[6]) ) {
+		for ( split(/[ :;,\/\(\)\@\$]/,lc $F[6]) ) {
 			if (defined($bots{$_})) { $bots{$_} += 1; next W; } 	# skip bots
 		} 
 	} 
