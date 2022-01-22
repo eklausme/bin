@@ -12,6 +12,7 @@
 #   7. user agent
 #
 # Elmar Klausmeier, 04-Dec-2021
+# Elmar Klausmeier, 11-Jan-2022: Aggregated values, new sub cntInH
 
 use strict;
 use Time::Local;
@@ -24,7 +25,7 @@ my %monthNum = (
 	'Sep' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12
 );
 my %H;	# hash: method+URL+protocol is key
-my %hist;	# histogram: year+week is key
+my %hist;	# histogram: year+week is key, currently not used
 
 
 print << "EOF";
@@ -36,7 +37,8 @@ print << "EOF";
 <body>
 <h1>URL Count</h1>
 <table id="urlcnt" class="display"></table>
-<table><tr>
+<table><thead><tr><th>Year<th>Month<th>Week
+	<tbody><tr>
 	<td><div class="histogram" id="container1"></div>
 	<td><div class="histogram" id="container2"></div>
 	<td><div class="histogram" id="container3"></div>
@@ -81,21 +83,14 @@ let ecoption = [];
 var urlFrequency = [
 EOF
 
-while (<>) {
-	my @F = split /\|/;
-	next if ($#F < 4);	# need URL at least
-	my ($wday,$day,$monthName,$year,$hms,$dl) = split(/ /,$F[1]);
-	my $month = $monthNum{$monthName};
-	my $epoch = timelocal( 0, 0, 0, $day, $month-1, $year-1900 );
-	my $week  = strftime("%U",localtime($epoch));
-	my ($yearweek,$yearmonth) = ("$year/$week","$year/$month");
-	$hist{$yearweek} += 1;
-	# Special handling for Elmar Klausmeier's blog
-	$F[4] =~ s/^GET \/(blog|music|jpilot)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
-	my $p = \$H{$F[4]};
+# Count in hash H
+sub cntInH(@) {
+	my ($size,$url,$year,$yearmonth,$yearweek) = ($_[0],$_[1],$_[2],$_[3],$_[4]);
+
+	my $p = \$H{$url};
 	if (defined($$p)) {
 		$$p->[0] += 1;
-		$$p->[1] += $F[3];
+		$$p->[1] += $size;
 		#$$p->[2]{$year} += 1;
 		#$$p->[3]{$yearmonth} += 1;
 		#$$p->[4]{$yearweek} += 1;
@@ -109,9 +104,27 @@ while (<>) {
 		if ($q->[$#{$q}][0] eq $yearweek) { $q->[$#{$q}][1] += 1; }
 		else { push $q->@*,[$yearweek,1]; }
 	} else {
-		#$H{$F[4]} = [ 1, $F[3], {$year=>1}, {$yearmonth=>1}, {$yearweek=>1} ];
-		$H{$F[4]} = [ 1, $F[3], [[$year,1]], [[$yearmonth,1]], [[$yearweek,1]], $nx++ ];
+		# $H{$F[4]} = [ 1, $F[3], {$year=>1}, {$yearmonth=>1}, {$yearweek=>1} ];
+		$H{$url} = [ 1, $size, [[$year,1]], [[$yearmonth,1]], [[$yearweek,1]], $nx++ ];
 	}
+}
+
+
+while (<>) {
+	my @F = split /\|/;
+	next if ($#F < 4);	# need URL at least
+	my ($wday,$day,$monthName,$year,$hms,$dl) = split(/ /,$F[1]);
+	my $month = $monthNum{$monthName};
+	my $epoch = timelocal( 0, 0, 0, $day, $month-1, $year-1900 );
+	my $week  = strftime("%U",localtime($epoch));
+	my ($yearweek,$yearmonth) = ("$year/$week","$year/$month");
+	$hist{$yearweek} += 1;	# not used
+	# Special handling for Elmar Klausmeier's blog
+	$F[4] =~ s/^GET \/(blog|music|jpilot)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
+	cntInH($F[3],$F[4],$year,$yearmonth,$yearweek);
+	my $aggrF4 = $F[4];
+	$aggrF4 =~ s/^(\w+) \/([^\/]+)([^ ]*) (\w+)\/([\.\-\w]+)/aMth $2 aPrt/;
+	cntInH($F[3],$aggrF4,$year,$yearmonth,$yearweek);
 }
 
 for my $f4 (keys %H) {
