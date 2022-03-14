@@ -20,38 +20,46 @@ my ($emptyUA,$badURL,$smallUA) = (0,0,0);
 my %ips = (
 	'3.219.212.117' => 0, '18.212.118.57' => 0, '18.232.89.176' => 0, '3.94.81.106' => 0,
 	'34.239.184.105' => 0, '54.80.126.99' => 0, '54.162.60.209' => 0,	# compute-1.amazonaws.com
+	'45.146.165.37' => 0,	# Russian
+	'60.217.75.69' => 0,	# China
 	'62.138.2.14' => 0, '62.138.2.214' => 0, '62.138.2.160' => 0,
 	'62.138.3.52' => 0, '62.138.6.15' => 0, '85.25.210.23' => 0,	# startdedicated.de
 	'66.240.192.138' => 0, '66.240.219.133' => 0, '66.240.219.146' => 0, '66.240.236.119' => 0,
 	'71.6.135.131' => 0, '71.6.146.185' => 0, '71.6.158.166' => 0, '71.6.165.200' => 0,
 	'71.6.167.142' => 0, '71.6.199.23' => 0, '80.82.77.33' => 0, '80.82.77.139' => 0,
+	'71.6.232.4' => 0,	# quadmetrics.com
 	'82.221.105.6' => 0, '82.221.105.7' => 0,	# shodan.io
 	'138.246.253.24' => 0, '106.55.250.60' => 0,	# various robots.txt reader
 	'127.0.0.1' => 0,	# localhost
 	'192.168.178.2' => 0, '192.168.178.20' => 0, '192.168.178.24' => 0,
 	'192.168.178.118' => 0, '192.168.178.249' => 0	# local network
 );
-my %errorCode = ( 301 => 0, 302 => 0, 400 => 0, 403 => 0, 404 => 0, 405 => 0, 500 => 0, 501 => 0, 503 => 0, 505 => 0 );
+my %errorCode = ( 301 => 0, 302 => 0, 303 => 0, 400 => 0, 403 => 0, 404 => 0, 405 => 0, 500 => 0, 501 => 0, 503 => 0, 505 => 0 );
 my %bots = (
 	'{jndi' => 0,
-	adsbot => 0, adscanner => 0, ahrefsbot => 0,
+	adsbot => 0, 'adsbot.html' => 0, adscanner => 0, ahrefsbot => 0,
 	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0,
-	baiduspider => 0, bingbot => 0, blexbot => 0,
+	baiduspider => 0, barkrowler => 0, bingbot => 0, bingpreview => 0, blexbot => 0,
 	ccbot => 0, censysinspect => 0, 'chrome-lighthouse' => 0,
 	'clark-crawler2' => 0, crawler => 0, crawler2 => 0, 'crawler.php' => 0,
 	criteobot => 0, curl => 0,
-	dareboost => 0, dataforseobot => 0, dotbot => 0,
+	dareboost => 0, dataforseobot => 0, discordbot => 0, dotbot => 0,
 	facebookexternalhit => 0, 'feedsearch-crawler' => 0, fluid => 0,
-	'go-http-client' => 0, googlebot => 0,
-	ioncrawl => 0, l9explore => 0, lighthouse => 0, ltx71 => 0,
+	'gdnplus.com' => 0, 'go-http-client' => 0, googlebot => 0, 'googlebot-image' => 0,
+	ioncrawl => 0, l9explore => 0, 'libwww-perl' => 0, lighthouse => 0, ltx71 => 0,
 	masscan => 0, 'masscan-ng' => 0, mediapartners => 0, 'mediapartners-google' => 0,
 	netestate => 0, nuclei => 0, nicecrawler => 0, petalbot => 0, pingdompagespeed => 0,
 	proximic => 0, 'pulsepoint-ads.txt-crawler' => 0, 'python-requests' => 0,
-	scaninfo => 0, screaming => 0, semrushbot => 0, 'semrushbot-ba' => 0,
+	sabsimbot => 0, scaninfo => 0, screaming => 0,
+	semrushbot => 0, 'semrushbot-ba' => 0,
 	seocompany => 0, seolyt => 0, sitecheckerbotcrawler => 0, sitelockspider => 0,
-	twitterbot => 0, ucrawl => 0,
+	slackbot => 0, 'slack-imgproxy' => 0, smtbot => 0, surdotlybot => 0,
+	tweetmemebot => 0, twitterbot => 0, ucrawl => 0,
 	virustotal => 0, 'web-crawler' => 0, 'webmeup-crawler' => 0,
-	'x-fb-crawlerbot' => 0, yandexbot => 0,
+	'webpros.com' => 0, woorankreview => 0,
+	'x-fb-crawlerbot' => 0, yacybot => 0,
+	yandexbot => 0, yandeximages => 0, yandexmetrika => 0,
+	zgrab => 0,
 );
 
 # Hiawatha log format:
