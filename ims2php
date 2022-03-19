@@ -1,0 +1,241 @@
+#!/bin/perl -W
+# Convert IMS/DC MFS to PHP
+# Elmar Klausmeier, 05-Feb-2022
+# Elmar Klausmeier, 01-Mar-2022, MSG TYPE=OUTPUT handling
+# Elmar Klausmeier, 07-Mar-2022, MSG TYPE=INPUT handling
+
+use strict;
+
+use Getopt::Std;
+my %opts = ('d' => 0);
+getopts('d',\%opts);
+my $debug = ($opts{'d'} != 0);
+
+my $C_PROT   = 0x01;
+my $C_NUM    = 0x02;
+my $C_HI     = 0x04;
+my $C_NODISP = 0x08;
+
+my ($i,$j,$k,$line,$concat,$inFmt,$inMsg,$spx,$dpage,$devSpec,$title) = (0,0,0,'',0,0,0,0,0,0,'IMS 2 PHP');
+my ($x,$y,$lth,$attr,$str) = (0,0,0,0,'');
+my ($type,$msgType,$unpackStr,$emptyOutput,$afterUnpack,$packStr,$packArgs) = ("",0,"",0,"","");
+my (%H,@screen);
+
+
+while (<>) {
+	++$i;	# line counter for error messages
+	next if (/^\*/);	# skip comment
+	my $concat2 = (length($_) >= 72 && substr($_,71,1) ne ' ') ? 1 : 0;
+	$_ = substr($_,0,71);	# chop line numbering after col 71, col 72 is continuation char
+	chomp;
+	s/\s+$//;
+	if ($concat) { s/^\s+//; $line .= $_; } else { $line = $_; }
+	$concat = $concat2;
+	next if ($concat2);
+	my ($operation,$operand) = (substr($line,9),"");
+	if (($spx = index($operation,' ')) >= 0) {	# space index
+		$operand = uc substr($operation,$spx);
+		$operand =~ s/^\s+//;	# ltrim
+		$operand =~ s/\s+$//;	# rtrim
+		$operation = substr($operation,0,$spx);
+	}
+	if ($operation eq 'FMT') { $inFmt = 1; }
+	elsif ($operation eq 'FMTEND') { $inFmt = 0; }
+	elsif ($operation eq 'DPAGE') { ++$dpage; }
+	elsif ($operation eq 'TITLE') { $title = $1 if ($operand =~ /'([^']+)'/); }
+	elsif ($operation eq 'MSG') { $inMsg = 1; }
+	elsif ($operation eq 'SEG') { printf(">>> SEG must follow after MSG\n") if ($inMsg != 1); }
+	elsif ($operation eq 'MSGEND') { $inMsg = 2; }
+	elsif ($operation eq 'DEV') { $devSpec = 1; }
+	if ($inFmt && $dpage == 1) {
+		my $label = substr($line,0,9);
+		$label =~ s/^\s+//;	# ltrim
+		$label =~ s/\s+$//;	# rtrim
+		if (length($label) == 0) { $label = sprintf("__%d",++$k); }
+		if ($operation eq 'DFLD') {
+			($x,$y,$lth,$attr,$str) = (0,0,0,0,"");
+			($y,$x) = ($1,$2) if ($operand =~ /POS=\((\d+),(\d+)\)/);
+			$lth = $1 if ($operand =~ /LTH=(\d+)/);
+			$str = $1 if ($operand =~ /'([^']+)'/);
+			if ($operand =~ /ATTR=\(([,\w]+)\)/) {
+				my $attrStr = uc $1;
+				for (split(/,/,$attrStr)) {
+					if ($_ eq 'PROT') { $attr |= $C_PROT; }
+					elsif ($_ eq 'NUM') { $attr |= $C_NUM; }
+					elsif ($_ eq 'HI') { $attr |= $C_HI; }
+					elsif ($_ eq 'NODISP') { $attr |= $C_NODISP; }
+				}
+			}
+			if ($label !~ /^__/) { $str = '_' x $lth; }	# for debugging
+			my $n = length($str);
+			if ($n > 0) {
+				if ($n > $lth) {
+					printf(">>> error: %s length LTH=%d in line %d does not match string length %d\n",$label,$lth,$i,$n);
+				} else {
+					$str .= ' ' x ($lth-$n);	# pad with spaces
+				}
+			}
+			$H{$label} = [ $x, $y, $lth, $attr, $str ];
+			if (defined($screen[($y-1)*80+$x])) {
+				printf(">>> error: %s (y,x)=(%d,%d) already occupied\n",$label,$y,$x);
+			} else { $screen[($y-1)*80+$x] = $label; }
+		}
+	} elsif ($inFmt && $devSpec == 1) {
+		if ($operand =~ /PFK=\((\w+),/) {
+			$H{$1} = [ -1, -1, -1, 0, '' ];
+		}
+		$devSpec = 0;
+	} elsif ($inMsg == 1 && $msgType == 0) {
+		$type = $1 if ($operand =~ /TYPE=(\w+)/);
+		if ($type eq 'INPUT') {
+			$msgType = 1;
+			($packStr,$packArgs) = ('"','');
+		} elsif ($type eq 'OUTPUT') {
+			$msgType = 2;
+			$unpackStr = '"';
+		} else { printf(">>> error: %s unknown message type %s\n",$operand,$type); }
+	} elsif ($inMsg == 1 && $msgType == 1) {	# MSG TYPE=INPUT
+		if ($operation eq 'MFLD') {
+			my $beforeLTH = "";
+			$lth = 0;
+			$lth = $1 if ($operand =~ /LTH=(\d+)/);
+			printf(">>> MFLD %s: lth=0 in MSG TYPE=INPUT\n",$operand) if ($lth == 0);
+			if (($spx = index($operand,'LTH=')) == 0) {	# nothing in front of LTH=
+				printf(">>> spx=%d, nothing in front of LTH= in MSG TYPE=INPUT\n",$spx);
+			} elsif (($beforeLTH = substr($operand,0,$spx)) =~ /^\s*(\w+),/) {	# simple case
+				my $dfldname = $1;
+				$packStr .= sprintf("A%d",$lth);
+				$packArgs .= sprintf(", getPost('%s')", $dfldname);
+				printf("<!--\n>>> %s undefined in MSG TYPE=INPUT simple case\n-->\n",$dfldname)
+					if (!defined($H{$dfldname}));
+			} elsif ($beforeLTH =~ /\((\w+),'([^']+)'\)/) {	# (dfldname,'literal') case
+				my ($dfldname,$literal) = ($1,$2);
+				$packStr .= sprintf("A%d",$lth);
+				$packArgs .= sprintf(", '%s'", $literal);
+			}
+			printf("%d: operator=%s, operand=%s, beforeLTH=%s, packStr=|%s|, packArgs=|%s|\n",$i,$operation,$operand,$beforeLTH,$packStr,$packArgs) if ($debug);
+		}
+	} elsif ($inMsg == 1 && $msgType == 2) {	# MSG TYPE=OUTPUT
+		if ($operation eq 'MFLD') {
+			my $beforeLTH = "";
+			$lth = 0;
+			$lth = $1 if ($operand =~ /LTH=(\d+)/);
+			printf(">>> MFLD %s: lth=0 in MSG TYPE=OUTPUT\n",$operand) if ($lth == 0);
+			if (($spx = index($operand,'LTH=')) == 0) {	# no dfldname
+				$unpackStr .= sprintf("A%d__%d/",$lth,++$emptyOutput);
+			} elsif (($beforeLTH = substr($operand,0,$spx)) eq '(,SCA),') {
+				$unpackStr .= sprintf("A%d__SCA/",$lth);
+			} elsif ($beforeLTH =~ /(\w+),/) {	# simple case
+				my $dfldname = $1;
+				if (defined($H{$dfldname})) {	# [ $x, $y, $lth, $attr, $str ];
+					if ($H{$dfldname}[2] < $lth) {
+						$afterUnpack .= sprintf("\$P['%s'] = substr(\$P['%s'],0,%d);\n",$dfldname,$dfldname,$H{$dfldname}[2]);
+					}
+				} else { printf("<!--\n>>> %s undefined, simple case\n-->\n",$dfldname); }
+				$unpackStr .= sprintf("A%d%s/",$lth,$dfldname);
+			} elsif ($beforeLTH =~ /\((\w+),'([^']+)'\)/) {	# (dfldname,'literal') case
+				my ($dfldname,$literal) = ($1,$2);
+				$unpackStr .= sprintf("A%d%s/",$lth,$dfldname);
+				if (defined($H{$dfldname})) {	# [ $x, $y, $lth, $attr, $str ];
+					$afterUnpack .= sprintf("\$P['%s'] = '%s'\n",$dfldname,$literal);
+				} else { printf("<!--\n>>> %s undefined, literal case\n-->\n",$dfldname); }
+			}
+		}
+	} elsif ($inMsg == 2) {	# MSGEND
+		$inMsg = 0;
+		if ($msgType == 1) {
+			$packStr .= '"';
+		} elsif ($msgType == 2) {
+			$unpackStr .= '"';
+			$afterUnpack = "// Cut off strings when longer than assumed length in message\n" . $afterUnpack if (length($afterUnpack) > 0);
+		}
+		$msgType = 0;
+		printf("%d packStr=|%s|, packArgs=|%s|\n",$i,$packStr,$packArgs) if ($debug);
+	}
+	printf("%4d,%d(%2d,%2d-%2d,%d): %s\n",$i,$inFmt,$y,$x,$lth,$attr,$line) if ($debug);
+}
+
+if ($debug) {
+	for (sort keys %H) {
+		printf("\t%-8s: x=%d, y=%d, lth=%d, attr=%d, str='%s'\n",$_,$H{$_}[0],$H{$_}[1],$H{$_}[2],$H{$_}[3],$H{$_}[4]);
+	}
+}
+
+print << "EOF";
+<html>
+<head>
+<title>$title</title>
+<style type="text/css">
+html { font: 20px courier new,monospace; background-color: black; color: #5050FF; font-weight: bold; }
+
+b { color: white; }
+#header { color: white; }
+#err { color: red; }
+
+#displayArea { border:1px #5050FF solid; padding: 10px; width:1000px; height:600px; }
+
+input {
+	font: bold 1em courier new,monospace;
+	color: #008000;
+	border: 0px #008000 solid;
+	background-color: black;
+	margin: 0px;
+	padding: 0px;
+	height: 1.1em;
+	text-indent: 0em;
+}
+EOF
+#for (sort keys %H) {
+#	next if ($_ =~ /^__/ || $H{$_}[3] & $C_PROT);
+#	printf("#%s { width: %.2f em; }\n",$_,$H{$_}[2]*0.75);
+#}
+print << "EOF";
+</style>
+<?php
+include 'ims2php.php';
+\$inmsg = pack($packStr$packArgs);
+callCobol(\$_SERVER['SCRIPT_NAME'],\$inmsg);
+\$ret = 0;	// \$ffcbltdli->CBLTDLI('GU  ',NULL,NULL,NULL,NULL);
+\$inmsg = str_pad('',2048);	// for testing without COBOL
+checkRet(\$ret);
+\$P = unpack($unpackStr,\$inmsg);
+$afterUnpack
+?>
+<body>
+<p><br/></p><div id=displayArea>
+<form name"ims2php" method=post action=xyz>
+<pre>
+EOF
+
+for ($y=1; $y<=24; ++$y) {
+	my $nlFlag = 0;
+	for ($x=1; $x<=80; ++$x) {
+		my $occupied = $screen[($y-1)*80+$x];
+		if (defined($occupied)) {
+			if ($y != $H{$occupied}[1]) { printf(">>> error: y=%d, %s[1]=%d mismatch\n",$y,$occupied,$H{$occupied}[1]); }
+			my $bold = $H{$occupied}[3] & $C_HI;
+			if ($occupied =~ /^__/) {
+				printf("%s%s%s", $bold?'<b>':'', $H{$occupied}[4], $bold?'</b>':'');
+				$nlFlag = 0;
+			} else {
+				my $phpfct = $H{$occupied}[3] & $C_NODISP ? 'hidden' : ($H{$occupied}[3] & $C_PROT ? 'prot' : 'noprot');
+				printf("%s<?php %s('%s',%d); ?>%s", $bold?'<b>':'', $phpfct, $occupied, $H{$occupied}[2], $bold?'</b>':'');
+				$nlFlag = 1;
+			}
+			$x += $H{$occupied}[2] - 1;
+		} else { printf(" "); }
+	}
+	printf("%s\n",$nlFlag?'<?="\\n"?>':'');
+}
+
+print << "EOF";
+</pre>
+</form>
+</div>
+<?php dbgprt(); ?>
+</body>
+</html>
+EOF
+
+
+
