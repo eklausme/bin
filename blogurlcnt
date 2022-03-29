@@ -13,6 +13,7 @@
 #
 # Elmar Klausmeier, 04-Dec-2021
 # Elmar Klausmeier, 11-Jan-2022: Aggregated values, new sub cntInH
+# Elmar Klausmeier, 29-Mar-2022: Tooltips in ECharts, factored out JS to reduce size
 
 use strict;
 use Time::Local;
@@ -120,7 +121,7 @@ while (<>) {
 	my ($yearweek,$yearmonth) = ("$year/$week","$year/$month");
 	$hist{$yearweek} += 1;	# not used
 	# Special handling for Elmar Klausmeier's blog
-	$F[4] =~ s/^GET \/(blog|music|jpilot)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
+	$F[4] =~ s/^GET \/(aux|blog|jpilot|music)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
 	cntInH($F[3],$F[4],$year,$yearmonth,$yearweek);
 	my $aggrF4 = $F[4];
 	$aggrF4 =~ s/^(\w+) \/([^\/]+)([^ ]*) (\w+)\/([\.\-\w]+)/aMth $2 aPrt/;
@@ -130,8 +131,10 @@ while (<>) {
 for my $f4 (keys %H) {
 	my ($meth,$url,$prot) = split(/ /,$f4);
 	my $displayURL = (length($url) > 95) ? substr($url,0,90).'...'.substr($url,-5) : $url;
-	printf("\t['<a href=\"#\" onclick=\"return d(%d);\">%d</a>',%d,'%s','%s','<a href=\\\".%s\\\">%s</a>'],\n",
-		$H{$f4}[5],$H{$f4}[0],$H{$f4}[1],$meth,$prot,$url,$displayURL);
+	# stackoverflow.com/questions/33442240 + perlmonks.org?node_id=1035411
+	my $size = scalar reverse(join(',', (unpack('(A3)*',reverse $H{$f4}[1]))));
+	printf("\t['<a href=\"#\" onclick=\"return d(%d);\">%d</a>','%s','%s','%s','<a href=\\\".%s\\\">%s</a>'],\n",
+		$H{$f4}[5],$H{$f4}[0],$size,$meth,$prot,$url,$displayURL);
 }
 printf("];\n\n");
 
@@ -149,8 +152,8 @@ for my $murlp (keys %H) {
 		}
 		#printf(" ];\n");
 		#printf("ecoption[%d].series[0].data = [",$j);
+		#."	yAxis: {type:'value'},\n"
 		printf("]},\n"
-		."	yAxis: {type:'value'},\n"
 		."	series: [{data:[");
 		for (@{$$pH->[2+$j]}) {	# y-values
 			printf("'%s',",$_->[1]);	# luckily JS allows dangling commas
@@ -186,6 +189,10 @@ var dom3 = document.getElementById("container3");
 var myChart3 = echarts.init(dom3);
 var app = {};
 
+for (i=0; i<3*$nx; ++i) {
+	ecoption[i].yAxis = {type:'value'};
+	ecoption[i].tooltip = { trigger:'axis', axisPointer: { type:'shadow' } };
+}
 d(0);
 
 </script>
