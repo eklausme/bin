@@ -31,7 +31,9 @@ my %hist;	# histogram: year+week is key, currently not used
 
 print << "EOF";
 <html>
-	<link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel=stylesheet />
+	<link href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAF7/cAumQHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABEREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" rel="icon" type="image/x-icon"/>
+
+	<link href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css" rel=stylesheet />
 	<style>
 		.histogram { height:400px; width:400px; }
 	</style>
@@ -40,25 +42,30 @@ print << "EOF";
 <table id="urlcnt" class="display"></table>
 <table><thead><tr><th>Year<th>Month<th>Week
 	<tbody><tr>
-	<td><div class="histogram" id="container1"></div>
-	<td><div class="histogram" id="container2"></div>
-	<td><div class="histogram" id="container3"></div>
+	<td><div class="histogram" id="containerYear"></div>
+	<td><div class="histogram" id="containerYearMonth"></div>
+	<td><div class="histogram" id="containerYearWeek"></div>
 </table>
 </body>
 
 <!-- Datatables -->
-<script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.js"></script>
-<script type="text/javascript" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 
 <!-- Apache ECharts -->
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts\@5.2.2/dist/echarts.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts\@5.3.1/dist/echarts.min.js"></script>
 
 <script type="text/javascript">
 function d(i) {	// we keep this function name short as it is used thousands of times in HTML table
 	let i3 = 3 * i;
-	if (ecoption[0] && typeof ecoption[0] === 'object') { myChart1.setOption(ecoption[i3]); }
-	if (ecoption[1] && typeof ecoption[1] === 'object') { myChart2.setOption(ecoption[i3+1]); }
-	if (ecoption[2] && typeof ecoption[2] === 'object') { myChart3.setOption(ecoption[i3+2]); }
+	for (k=0; k<3; ++k) {
+		j = i3 + k;
+		if (ecoption[j] && typeof ecoption[j] === 'object') {
+			ecoption[j].yAxis = {type:'value'};
+			ecoption[j].tooltip = { trigger:'axis', axisPointer:{type:'shadow'} };
+			myChart[k].setOption(ecoption[j]);
+		} else break;
+	}
 	return false;	// see: https://stackoverflow.com/questions/1070760/javascript-function-in-href-vs-onclick
 }
 
@@ -176,23 +183,18 @@ print << "EOF";
 		{ title: "URL" }
 	],
 	order: [[ 0, "desc" ]],
-	lengthMenu: [ 10, 20, 50, 100, 150, -1 ]
+	lengthMenu: [ 10, 20, 50, 100, 150, -1 ],
+	columnDefs: [ { targets: 1, className: 'dt-body-right' } ]
 	} );
 } );
 
 // Apache ECharts
-var dom1 = document.getElementById("container1");
-var myChart1 = echarts.init(dom1);
-var dom2 = document.getElementById("container2");
-var myChart2 = echarts.init(dom2);
-var dom3 = document.getElementById("container3");
-var myChart3 = echarts.init(dom3);
+var dom1 = document.getElementById("containerYear");
+var dom2 = document.getElementById("containerYearMonth");
+var dom3 = document.getElementById("containerYearWeek");
+var myChart = [ echarts.init(dom1), echarts.init(dom2), echarts.init(dom3) ];
 var app = {};
 
-for (i=0; i<3*$nx; ++i) {
-	ecoption[i].yAxis = {type:'value'};
-	ecoption[i].tooltip = { trigger:'axis', axisPointer: { type:'shadow' } };
-}
 d(0);
 
 </script>
