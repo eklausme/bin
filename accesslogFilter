@@ -23,6 +23,7 @@ my %classC = (
 	'45.86.200' => 0,
 	'45.128.199' => 0,	# PANQ in Netheland
 	'64.124.8' => 0,	# Zayo
+	'74.80.208' => 0,	# Castle Global @ thehive.ai
 	'85.203.21' => 0,	# VPN Consumer Network Singapore
 	'185.82.72' => 0,	# NL Layerswitch
 	'192.168.0' => 0,	# local network
@@ -36,13 +37,14 @@ my %ips = (
 	'54.164.82.20' => 0, '54.175.209.89' => 0, '54.196.194.235' => 0, '54.197.65.200' => 0,
 	'54.211.110.230' => 0, '54.221.123.72' => 0, '54.226.71.23' => 0, '54.226.76.89' => 0,	# compute-1.amazonaws.com
 	'37.20.208.218' => 0,	# Siberia rt.ru
+	'46.4.62.166' => 0,	# Hetzner
 	'45.8.17.18' => 0, '45.8.17.19' => 0, '45.8.17.23' => 0, '45.8.17.35' => 0,	# TnR Technologies in Netherland
 	'45.61.187.81' => 0,	# FranTech
 	'45.146.164.110' => 0, '45.146.165.37' => 0,
 	'45.155.204.146' => 0,	# hostway.ru Russia
 	'60.217.75.69' => 0, '61.147.15.67' => 0,	# China
 	'62.138.2.14' => 0, '62.138.2.214' => 0, '62.138.2.160' => 0,
-	'62.138.3.52' => 0, '62.138.6.15' => 0, '85.25.210.23' => 0,	# startdedicated.de
+	'62.138.3.52' => 0, '62.138.6.15' => 0, '85.25.210.23' => 0, '92.204.54.123' => 0,	# startdedicated.de
 	'62.210.127.188' => 0,	# poneytelecom.eu
 	'66.240.192.138' => 0, '66.240.219.133' => 0, '66.240.219.146' => 0, '66.240.236.119' => 0,
 	'71.6.135.131' => 0, '71.6.146.130' => 0, '71.6.146.185' => 0, '71.6.158.166' => 0,
@@ -62,7 +64,7 @@ my %ips = (
 	'152.89.196.62' => 0, '152.89.196.211' => 0,	# Russian Starcrecium
 	'178.158.11.102' => 0, '178.158.65.110' => 0,	# mageal.ru
 	'180.112.224.7' => 0,	# Chinanet Jiangsu Province Network
-	'183.136.225.35' => 0,	# China Leon Ship Network
+	'183.136.225.32' => 0, '183.136.225.35' => 0,	# China Leon Ship Network
 	'185.7.214.104' => 0,	# Hong Kong
 	'193.106.29.210' => 0,	# Ukraine Infiumhost.com
 	'193.106.191.48' => 0,	# Russian Kanzas LLC
@@ -73,7 +75,7 @@ my %bots = (
 	'{jndi' => 0,
 	'360spider' => 0, adsbot => 0, 'adsbot.html' => 0, adscanner => 0, ahrefsbot => 0, ahrefssiteaudit => 0,
 	aiohttp => 0, amazonbot => 0,
-	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0,
+	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0, awariosmartbot => 0,
 	baiduspider => 0, 'baiduspider-render' => 0, barkrowler => 0, bingbot => 0, bingpreview => 0, blexbot => 0,
 	ccbot => 0, censysinspect => 0, 'chrome-lighthouse' => 0,
 	'clark-crawler2' => 0, 'coccocbot-image' => 0, 'coccocbot-web' => 0, coibotparser => 0,
@@ -86,26 +88,29 @@ my %bots = (
 	facebookexternalhit => 0, 'feedsearch-crawler' => 0, 'flat-crawler' => 0, fluid => 0,
 	'gdnplus.com' => 0, gnu => 0, 'go-http-client' => 0,
 	googlebot => 0, 'googlebot-image' => 0,
-	infotigerbot => 0, ioncrawl => 0,
+	infotigerbot => 0, internetmeasurement => 0, ioncrawl => 0,
 	l9explore => 0, l9tcpid => 0, 'libwww-perl' => 0, lighthouse => 0, 'linespider' => 0,
-	'linkfluence.com' => 0, ltx71 => 0,
+	linkdexbot => 0, linkedinbot => 0, 'linkfluence.com' => 0, livelapbot => 0, ltx71 => 0,
 	masscan => 0, 'masscan-ng' => 0, mediapartners => 0, 'mediapartners-google' => 0,
-	mj12bot => 0, modabot => 0, mojeekbot => 0, mozilliqa => 0, mrgbot => 0,
-	netcraft => 0, netcraftsurveyagent => 0, netestate => 0, 'netsystemsresearch.com' => 0,
+	megaindex => 0, mindupbot => 0, mj12bot => 0, modabot => 0, mojeekbot => 0, mozilliqa => 0, mrgbot => 0,
+	netcraft => 0, netcraftsurveyagent => 0, netestate => 0, netpeakcheckerbot => 0,
+	'netsystemsresearch.com' => 0,
 	neevabot => 0, nicecrawler => 0, ninjbot => 0, 'node-fetch' => 0, nuclei => 0,
 	onalyticabot => 0,
 	petalbot => 0, pingdompagespeed => 0, pinterestbot => 0, 'project-resonance' => 0,
 	proximic => 0, 'pulsepoint-ads.txt-crawler' => 0, 'python-requests' => 0,
-	sabsimbot => 0, scaninfo => 0, screaming => 0, seekportbot => 0,
+	sabsimbot => 0, scaninfo => 0, screaming => 0, seekportbot => 0, semanticbot => 0,
 	semrushbot => 0, 'semrushbot-ba' => 0, seocompany => 0, seolyt => 0,
 	serendeputybot => 0, seznambot => 0, sitecheckerbotcrawler => 0,
 	sitelockspider => 0, sitesucker => 0,
 	slackbot => 0, 'slack-imgproxy' => 0, smtbot => 0, surdotlybot => 0,
-	tchelebi => 0, tweetmemebot => 0, twingly => 0, twitterbot => 0, ucrawl => 0,
+	tchelebi => 0, trendsmapresolver => 0, tweetmemebot => 0, twingly => 0, twitterbot => 0,
+	ucrawl => 0,
 	virustotal => 0, 'web-crawler' => 0, 'webmeup-crawler' => 0,
-	'webpros.com' => 0, woorankreview => 0,
+	webprosbot => 0, 'webpros.com' => 0, woorankreview => 0,
 	'x-fb-crawlerbot' => 0, xfa1 => 0, yacybot => 0,
-	yandexbot => 0, yandexfavicons => 0, yandeximages => 0, yandexmetrika => 0,
+	yandexbot => 0, yandexfavicons => 0, yandeximageresizer => 0, yandeximages => 0, yandexmetrika => 0,
+	yandexnews => 0, yandexrenderresourcesbot => 0, youbot => 0,
 	zgrab => 0,
 );
 
