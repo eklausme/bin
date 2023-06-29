@@ -8,6 +8,7 @@
 # Elmar Klausmeier, 04-Dec-2021: added crawlers, no longer split $F[6] at '-'
 # Elmar Klausmeier, 10-Dec-2021: added IPs for robots.txt reader, added getopt + statistics
 # Elmar Klausmeier, 23-May-2022: Class C network filtering
+# Elmar Klausmeier, 29-May-2023: add bad referer
 
 use strict;
 
@@ -15,7 +16,7 @@ use Getopt::Std;
 my %opts = ();
 getopts('o:',\%opts);
 my $statout = (defined($opts{'o'}) ? $opts{'o'} : undef);
-my ($emptyUA,$badURL,$smallUA) = (0,0,0);
+my ($emptyUA,$badURL,$badReferer,$smallUA) = (0,0,0,0);
 
 
 my %classC = (
@@ -62,6 +63,7 @@ my %ips = (
 	'138.246.253.24' => 0, '106.55.250.60' => 0,	# various robots.txt reader
 	'145.239.154.82' => 0, '145.239.154.84' => 0, '145.239.154.85' => 0,	# OVH France
 	'152.89.196.62' => 0, '152.89.196.211' => 0,	# Russian Starcrecium
+	'158.69.195.206' => 0,	# OVH Montreal
 	'178.158.11.102' => 0, '178.158.65.110' => 0,	# mageal.ru
 	'180.112.224.7' => 0,	# Chinanet Jiangsu Province Network
 	'183.136.225.32' => 0, '183.136.225.35' => 0,	# China Leon Ship Network
@@ -84,10 +86,11 @@ my %bots = (
 	dareboost => 0, dataforseobot => 0, detection => 0, 'dingtalkbot-linkservice' => 0,
 	discordbot => 0, dotbot => 0,
 	duckduckbot => 0, 'duckduckgo-favicons-bot' => 0,
-	entferbot => 0,
+	entferbot => 0, expanse => 0,
 	facebookexternalhit => 0, 'feedsearch-crawler' => 0, 'flat-crawler' => 0, fluid => 0,
 	'gdnplus.com' => 0, gnu => 0, 'go-http-client' => 0,
 	googlebot => 0, 'googlebot-image' => 0,
+	hello => 0,
 	infotigerbot => 0, internetmeasurement => 0, ioncrawl => 0,
 	l9explore => 0, l9tcpid => 0, 'libwww-perl' => 0, lighthouse => 0, 'linespider' => 0,
 	linkdexbot => 0, linkedinbot => 0, 'linkfluence.com' => 0, livelapbot => 0, ltx71 => 0,
@@ -132,6 +135,7 @@ W: while (<>) {
 	if ($#F <= 5) { $emptyUA += 1; next; }
 	if (defined($errorCode{$F[2]})) { $errorCode{$F[2]} += 1; next; }	# not found errors are ignored
 	if ($F[4] =~ /XDEBUG_SESSION_START|HelloThink(CMF|PHP|PHP21)/) { $badURL += 1; next; }
+	if ($F[5] =~ /XDEBUG_SESSION_START|HelloThink(CMF|PHP|PHP21)/) { $badReferer += 1; next; }
 	if ($#F >= 6) {	# Is UA field available?
 		if (length($F[6]) <= 3) { $smallUA += 1; next W; }
 		for ( split(/[ :;,\/\(\)\@\$]/,lc $F[6]) ) {
@@ -153,6 +157,7 @@ if (defined($statout)) {
 	}
 	printf(F "eUA\t%d\n",$emptyUA);
 	printf(F "badURL\t%d\n",$badURL);
+	printf(F "badReferer\t%d\n",$badReferer);
 	for (sort keys %errorCode) {
 		next if ($errorCode{$_} == 0);
 		printf(F "code\t%d\t%d\n",$errorCode{$_},$_);

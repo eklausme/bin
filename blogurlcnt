@@ -14,6 +14,8 @@
 # Elmar Klausmeier, 04-Dec-2021
 # Elmar Klausmeier, 11-Jan-2022: Aggregated values, new sub cntInH
 # Elmar Klausmeier, 29-Mar-2022: Tooltips in ECharts, factored out JS to reduce size
+# Elmar Klausmeier, 25-Aug-2022: Filter illegal HTML chars
+# Elmar Klausmeier, 03-Dec-2022: Filter \r from URL
 
 use strict;
 use Time::Local;
@@ -50,10 +52,10 @@ print << "EOF";
 
 <!-- Datatables -->
 <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.js"></script>
-<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
 
 <!-- Apache ECharts -->
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts\@5.3.1/dist/echarts.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts\@5.3.3/dist/echarts.min.js"></script>
 
 <script type="text/javascript">
 function d(i) {	// we keep this function name short as it is used thousands of times in HTML table
@@ -99,9 +101,9 @@ sub cntInH(@) {
 	if (defined($$p)) {
 		$$p->[0] += 1;
 		$$p->[1] += $size;
-		#$$p->[2]{$year} += 1;
-		#$$p->[3]{$yearmonth} += 1;
-		#$$p->[4]{$yearweek} += 1;
+		# $$p->[2]{$year} += 1;
+		# $$p->[3]{$yearmonth} += 1;
+		# $$p->[4]{$yearweek} += 1;
 		my $q = $$p->[2];
 		if ($q->[$#{$q}][0] eq $year) { $q->[$#{$q}][1] += 1; }
 		else { push $q->@*,[$year,1]; }
@@ -121,6 +123,8 @@ sub cntInH(@) {
 while (<>) {
 	my @F = split /\|/;
 	next if ($#F < 4);	# need URL at least
+	next if ($F[2] eq '414' || $F[2] =~ /5\d\d/);	# these records cannot be processed
+	$F[4] =~ s/\r//g;	# strip \r
 	my ($wday,$day,$monthName,$year,$hms,$dl) = split(/ /,$F[1]);
 	my $month = $monthNum{$monthName};
 	my $epoch = timelocal( 0, 0, 0, $day, $month-1, $year-1900 );
@@ -128,7 +132,7 @@ while (<>) {
 	my ($yearweek,$yearmonth) = ("$year/$week","$year/$month");
 	$hist{$yearweek} += 1;	# not used
 	# Special handling for Elmar Klausmeier's blog
-	$F[4] =~ s/^GET \/(aux|blog|jpilot|music)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
+	$F[4] =~ s/^GET \/(aux|blog|jpilot|music|gallery|koehntopp|mobility|nukeklaus|saaze-example)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
 	cntInH($F[3],$F[4],$year,$yearmonth,$yearweek);
 	my $aggrF4 = $F[4];
 	$aggrF4 =~ s/^(\w+) \/([^\/]+)([^ ]*) (\w+)\/([\.\-\w]+)/aMth $2 aPrt/;
@@ -137,7 +141,16 @@ while (<>) {
 
 for my $f4 (keys %H) {
 	my ($meth,$url,$prot) = split(/ /,$f4);
+	$prot = 'unknown' if (!defined($prot));
+	$url =~ s/'/&#39;/g;
+	$url =~ s/"/&#34;/g;
+	$url =~ s/:/&#58;/g;
+	$url =~ s/</&#3c;/g;
+	$url =~ s/>/&#3e;/g;
+	$url =~ s/\\/&#92;/g;
+	$url =~ s/\?/&#63;/g;
 	my $displayURL = (length($url) > 95) ? substr($url,0,90).'...'.substr($url,-5) : $url;
+	# Perl printf to use commas as thousands-separator:
 	# stackoverflow.com/questions/33442240 + perlmonks.org?node_id=1035411
 	my $size = scalar reverse(join(',', (unpack('(A3)*',reverse $H{$f4}[1]))));
 	printf("\t['<a href=\"#\" onclick=\"return d(%d);\">%d</a>','%s','%s','%s','<a href=\\\".%s\\\">%s</a>'],\n",
@@ -193,7 +206,6 @@ var dom1 = document.getElementById("containerYear");
 var dom2 = document.getElementById("containerYearMonth");
 var dom3 = document.getElementById("containerYearWeek");
 var myChart = [ echarts.init(dom1), echarts.init(dom2), echarts.init(dom3) ];
-var app = {};
 
 d(0);
 
