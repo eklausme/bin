@@ -70,7 +70,8 @@ my %ips = (
 	'185.7.214.104' => 0,	# Hong Kong
 	'193.106.29.210' => 0,	# Ukraine Infiumhost.com
 	'193.106.191.48' => 0,	# Russian Kanzas LLC
-	'195.54.160.149' => 0	# laincou.name
+	'195.54.160.149' => 0,	# laincou.name
+	'213.226.123.186' => 0	# Novoselov Saint Petersburg
 );
 my %errorCode = ( 301 => 0, 302 => 0, 303 => 0, 400 => 0, 403 => 0, 404 => 0, 405 => 0, 500 => 0, 501 => 0, 503 => 0, 505 => 0 );
 my %bots = (
@@ -78,7 +79,8 @@ my %bots = (
 	'360spider' => 0, adsbot => 0, 'adsbot.html' => 0, adscanner => 0, ahrefsbot => 0, ahrefssiteaudit => 0,
 	aiohttp => 0, amazonbot => 0,
 	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0, awariosmartbot => 0,
-	baiduspider => 0, 'baiduspider-render' => 0, barkrowler => 0, bingbot => 0, bingpreview => 0, blexbot => 0,
+	baiduspider => 0, 'baiduspider-render' => 0, barkrowler => 0, bingbot => 0, bingpreview => 0,
+	blexbot => 0, bytespider => 0,
 	ccbot => 0, censysinspect => 0, 'chrome-lighthouse' => 0,
 	'clark-crawler2' => 0, 'coccocbot-image' => 0, 'coccocbot-web' => 0, coibotparser => 0,
 	crawler => 0, crawler2 => 0, 'crawler.php' => 0,
@@ -100,7 +102,7 @@ my %bots = (
 	'netsystemsresearch.com' => 0,
 	neevabot => 0, nicecrawler => 0, ninjbot => 0, 'node-fetch' => 0, nuclei => 0,
 	onalyticabot => 0,
-	petalbot => 0, pingdompagespeed => 0, pinterestbot => 0, 'project-resonance' => 0,
+	petalbot => 0, phxbot => 0, pingdompagespeed => 0, pinterestbot => 0, 'project-resonance' => 0,
 	proximic => 0, 'pulsepoint-ads.txt-crawler' => 0, 'python-requests' => 0,
 	sabsimbot => 0, scaninfo => 0, screaming => 0, seekportbot => 0, semanticbot => 0,
 	semrushbot => 0, 'semrushbot-ba' => 0, seocompany => 0, seolyt => 0,
