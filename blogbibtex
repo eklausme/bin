@@ -1,0 +1,117 @@
+#!/bin/perl -W
+# Convert BibTeX to Markdown. Produce the following:
+#    1. List of URL targets
+#    2. Sorted list of literature entries
+#
+# Elmar Klausmeier, 30-Sep-2023
+
+use strict;
+my ($inArticle,$entry,$entryOrig,$type) = (0,"","");
+my %H;	# hash of hash (each element in hash is a yet another hash)
+my %Journals = (	# see http://cdsads.u-strasbg.fr/abs_doc/aas_macros.html
+	'\aap'   => 'Astronomy & Astrophysics',
+	'\aj'    => 'Astronomical Journal',
+	'\apj'   => 'The Astrophysical Journal',
+	'\apjl'  => 'Astrophysical Journal, Letters',
+	'\apjs'  => 'Astrophysical Journal, Supplement',
+	'\mnras' => 'Monthly Notices of the RAS',
+	'\nat'   => 'Nature'
+);
+
+while (<>) {
+	if (/^@(article|book|inproceedings|misc|software)\{(\w+),$/) {
+		($type,$entry,$entryOrig,$inArticle) = ($1,uc $2,$2,1);
+		$H{$entry}{'entry'} = $entryOrig;
+		$H{$entry}{'type'} = $type;
+		#printf("\t\tentry = |%s|, type = |%s|\n",$entry,$type);
+	} elsif ($inArticle) {
+		if (/^}\s*$/) { $inArticle = 0; next; }
+		if (/^\s+(\w+)\s*=\s*(.+)(|,)$/) {
+			my ($key,$value) = ($1,$2);
+
+			# LaTeX foreign language character handling
+			$value =~ s/\{\\ss\}/ß/g;
+			$value =~ s/\{\\"A\}/Ä/g;
+			$value =~ s/\{\\"U\}/Ü/g;
+			$value =~ s/\{\\"O\}/Ö/g;
+			$value =~ s/\{\\"a\}/ä/g;
+			$value =~ s/\{\\"u\}/ü/g;
+			$value =~ s/\{\\"i\}/ï/g;
+			$value =~ s/\{\\H\{o\}\}/ő/g;
+			$value =~ s/\{\\"\\i\}/ï/g;
+			$value =~ s/\{\\"o\}/ö/g;
+			$value =~ s/\{\\'A\}/Á/g;	# accent aigu
+			$value =~ s/\{\\'E\}/É/g;	# accent aigu
+			$value =~ s/\{\\'O\}/Ó/g;	# accent aigu
+			$value =~ s/\{\\'U\}/Ú/g;	# accent aigu
+			$value =~ s/\{\\'a\}/á/g;	# accent aigu
+			$value =~ s/\{\\'e\}/é/g;	# accent aigu
+			$value =~ s/\{\\'o\}/ó/g;	# accent aigu
+			$value =~ s/\{\\'u\}/ú/g;	# accent aigu
+			$value =~ s/\{\\`a\}/à/g;	# accent grave
+			$value =~ s/\{\\`e\}/è/g;	# accent grave
+			$value =~ s/\{\\`u\}/ù/g;	# accent grave
+			$value =~ s/\{\\^a\}/â/g;	# accent circonflexe
+			$value =~ s/\{\\^e\}/ê/g;	# accent circonflexe
+			$value =~ s/\{\\^i\}/î/g;	# accent circonflexe
+			$value =~ s/\{\\^\\i\}/î/g;	# accent circonflexe
+			$value =~ s/\{\\^o\}/ô/g;	# accent circonflexe
+			$value =~ s/\{\\^u\}/û/g;	# accent circonflexe
+			$value =~ s/\{\\~A\}/Ã/g;	# minuscule a
+			$value =~ s/\{\\~a\}/ã/g;	# minuscule a
+			$value =~ s/\{\\~O\}/Õ/g;	# minuscule o
+			$value =~ s/\{\\~o\}/õ/g;	# minuscule o
+			$value =~ s/\{\\~n\}/ñ/g;	# palatal n
+			$value =~ s/\{\\v\{C\}/Č/g;	# grapheme C
+			$value =~ s/\{\\v\{c\}/č/g;	# grapheme c
+			$value =~ s/\{\\v\{S\}/Š/g;	# grapheme S
+			$value =~ s/\{\\v\{s\}/š/g;	# grapheme s
+			$value =~ s/\{\\v\{Z\}/Ž/g;	# grapheme Z
+			$value =~ s/\{\\v\{z\}/ž/g;	# grapheme z
+	
+			$value =~ s/\{|\}|\~//g;	# drop {}~
+			$value =~ s/,$//;	# drop last comma
+			$H{$entry}{$key} = $value;
+			#printf("\t\t\tentry = |%s|, key = |%s|\n", $entry, $key);
+		}
+	}
+}
+
+print("\n");
+for my $e (sort keys %H) {
+	my $He = \%H{$e};
+	my $url = 
+	printf("[%s]: %s\n", $H{$e}{'entry'},
+		exists($H{$e}{'doi'}) ? 'https://doi.org/'.$H{$e}{'doi'}
+		: exists($H{$e}{'url'}) ? $H{$e}{'url'} : '#Literature');
+}
+print("\n");
+
+for my $e (sort keys %H) {
+	my ($He,$date,$journal) = (\$H{$e},"","");
+	if (exists($$He->{'year'}) && exists($$He->{'month'}) && exists($$He->{'day'})) {
+		$date = sprintf("%02d-%s-%d", $$He->{'year'}, $$He->{'month'}, $$He->{'day'});
+	} elsif (exists($$He->{'year'}) && exists($$He->{'month'})) {
+		my $m = $$He->{'month'};
+		$date = "\u$m" . "-" . 	$$He->{'year'};
+	} elsif (exists($$He->{'year'})) {
+		$date = $$He->{'year'};
+	}
+	if (exists($$He->{'journal'})) {
+		my $t = $$He->{'journal'};
+		$journal = ", " . ((substr($t,0,1) eq '\\') ? $Journals{$t} : $t);
+		$journal .= ", Vol. " . $$He->{'volume'} if (exists($$He->{'volume'}));
+		$journal .= ", Nr. " . $$He->{'number'} if (exists($$He->{'number'}));
+		$journal .= ", pp. " . $$He->{'pages'} if (exists($$He->{'pages'}));
+	}
+
+	printf("1. \\[%s\\] %s: _%s_, %s%s%s\n", $H{$e}{'entry'}, $H{$e}{'author'},
+		defined($H{$e}{'title'}) ? $H{$e}{'title'} : $H{$e}{'howpublished'},
+		$date, $journal,
+		exists($H{$e}{'doi'}) ? ', https://doi.org/'.$H{$e}{'doi'}
+		: exists($H{$e}{'url'}) ? ', ' . $H{$e}{'url'} : ''
+	);
+}
+
+
+

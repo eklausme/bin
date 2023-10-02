@@ -1,0 +1,172 @@
+#!/bin/perl -W
+# Convert paper in "Astronomy & Astrophysics" LaTeX format to something resembling Markdown
+# Manual post-processing is still necessary but a lot easier
+#
+# Elmar Klausmeier, 29-Sep-2023
+
+use strict;
+my ($ignore,$sectionCnt,$subSectionCnt,$replaceAlgo,$replaceTable) = (1,0,0,0,0);
+my (@sections) = ();
+
+print <<'EOF';
+---
+date: "2023-08-03 14:00:00"
+title: "A Parsec-Scale Galactic 3D Dust Map out to 1.25 kpc from the Sun"
+description: "A 3D map of the spatial distribution of interstellar dust extinction out to a distance of 1.25 kpc from the Sun"
+MathJax: true
+categories: ["mathematics", "astronomy"]
+tags: ["interstellar dust", "interstellar medium", "Milky Way", "Gaia", "Gaussian processes", "Bayesian inference"]
+---
+
+EOF
+
+while (<>) {
+	$ignore = 0 if (/\\author\{Gordian~Edenhofer/);
+	next if ($ignore);
+
+	# In this particular case we replace the two algorithms with a corresponding screenshot
+	if (/^\\begin\{algorithm/) {
+		$replaceAlgo = 1;
+		next;
+	} elsif (/^\s+Pseudocode for ICR creating a GP/) {
+		s/^(\s+)//;
+		s/(\\left|right)\\/$1\\\\/g;	# probably MathJax bug
+		$replaceAlgo = 0;
+		print "![](*<?=\$rbase?>*/img/parsec_res/Algorithm1.webp)\n\n";
+	} elsif (/^\s+Pseudocode for our expansion point variational/) {
+		s/^(\s+)//;
+		$replaceAlgo = 0;
+		print "![](*<?=\$rbase?>*/img/parsec_res/Algorithm2.webp)\n\n";
+	} elsif ($replaceAlgo == 1) { next; }
+
+	if (/^\\begin\{table/) {
+		$replaceTable = 1;
+		next;
+	} elsif (/^\\end\{table/) {
+		$replaceTable = 0;
+		print <<'EOF';
+
+Parameters of the prior distributions.
+The parameters $s$, $\mathrm{scl}$, and $\mathrm{off}$ fully determine $\rho$.
+They are jointly chosen to a prior yield the kernel reconstructed in [Leike2020][].
+
+
+
+ Name | Distribution | Mean | Standard Deviation | Degrees of Freedom
+ -----|--------------|------|--------------------|--------------------
+_s_   | Normal       | 0.0  | Kernel from [Leike2020][] | 786,432 &times; 772
+scl   | Log-Normal   | 1.0  | 0.5                |  1
+off   |  Normal      | $-6.91\left(\approx\ln10^{-3}\right)$ <br>prior median extinction <br>from [Leike2020][] | 1.0 | 1
+      |              |      | Shape Parameter    | Scale Parameter  
+$n_\sigma$ | Inverse Gamma | 3.0 | 4.0 | #Stars = 53,880,655
+
+EOF
+		next;
+	} elsif ($replaceTable == 1) { next; }
+
+	s/^\\(author|institute)\{/\n<p>\u$1s:<\/p>\n\n1. /;
+
+	s/\~/ /g;
+
+	# Authors, institutions, abstract, etc.
+	s/\(\\begin\{CJK\*.+?CJK\*\}\)//;
+	s/\\inst\{(.+?)\}/ \($1\)/g;
+	if (/^\s+\\and/) { print "1. "; next; }
+	s/^\{% (\w+) heading \(.+$/\n\n_\u$1._ /;
+	s/^\\abstract/## Abstract/;
+	s/^\\keywords\{/__Key words.__ /;
+
+	# Lines to drop, not relevant
+	next if (/(^\\maketitle|^%\s+|^%In general|^\\date|^\\begin\{figure|^\\end\{figure|\s+\\centering|\s+\\begin\{split\}|\s+\\end\{split\}|^\s*\\label|^\\end\{acknowledgements\}|^\\FloatBarrier|^\\bibliograph|^\\end\{algorithm\}|^\\begin\{appendix|^\\end\{appendix\}|^\\end\{document\})/);
+
+	s/\s+%\s+[^%].+$//;	# Drop LaTeX comments
+	s/\\fnmsep.+$//;	# drop e-mail
+
+	print "\$\$\n" if (/(\\begin\{equation\}|\\begin\{align\})/);	# enclose with $$a #1
+
+	# images
+	s/\s+\\includegraphics.+res\/(\w+)\}/!\[Photo\]\(\*<\?=\$rbase\?>\*\/img\/parsec_res\/$1\.png)/;
+	s/\s+\\subcaptionbox\{(.+?)\}\{\%/\n__$1__\n/g;
+	# MathJax doesn't know \nicefrac
+	s/\\nicefrac\{(.+?)\}\{(.+?)\}/\{$1\}\/\{$2\}/g;
+	s/\\coloneqq/:=/g;	# MathJax doesn't know \coloneqq + \argmin + \SI
+	s/\\argmin/\\mathop\{\\hbox\{arg min\}\}/g;
+	s/\\SI(|\[parse\-numbers=false\])\{(.+?)\}/$2/g;
+	s/\\SIrange\{(.+?)\}\{(.+?)\}\{(|\\)([^\\]+?)\}/$1 $4 to $2 $4/g;
+	s/\\nano\\meter/nm/g;
+	s/\{\\pc\}/pc/g;
+	s/\{\\kpc\}/kpc/g;
+	s/(kpc|pc)\$/\\\\,\\hbox\{$1\}\$/g;
+	s/\{\\cubic\\pc\}/\\\\,\\hbox\{pc\}^3/g;
+	s/i\.e\.\\ /i.e., /g;
+
+	# Special cases
+	s/``([A-Za-z])/"$1/g;	# double backquotes in LaTeX have an entirely different meaning than in Markdown
+
+	# These are probably MathJax bugs, which we correct here
+	s/\$\\tilde\{Q\}_\{\\bar\{\\xi\}\}\$/\$\\tilde\{Q\}\\_\{\\bar\{\\xi\}\}\$/g;
+	s/\$\\mathcal\{D\}_/\$\\mathcal\{D\}\\_/g;
+	s/\$P\(d\|\\mathcal\{D\}_/\$P\(d\|\\mathcal\{D\}\\_/g;
+	s/\$\\mathrm\{sf\}_/\$\\mathrm\{sf\}\\_/g;
+
+	s/\\url\{(.+?)\}/$1/g;	# Markdown automatically URL-ifies URLs, so we can dispense \url{}
+
+	# Thousands separator, see https://stackoverflow.com/questions/33442240/perl-printf-to-use-commas-as-thousands-separator
+	s/\\num\[group-separator=\{,\}\]\{(\d+)\}/scalar reverse(join(",",unpack("(A3)*", reverse int($1))))/eg;
+
+	# Code
+	s/\\lstinline\|(.+?)\|/`$1`/g;
+	s/\\texttt\{(.+?)\}/`$1`/g;
+	s/quality\\_flags\$<\$8/quality_flags<8/g;	# special case
+
+	# Special cases for preventing code blocks because of indentation
+	s/   (The angular resolution)/$1/;
+	s/   (The stated highest r)/$1/;
+
+	# sections + subsections
+	if (/\\section\{(.+?)\}\s*$/) {
+		my $s = $1;
+		++$sectionCnt; $subSectionCnt = 0;
+		push @sections, "- [$sectionCnt. $s](#s$sectionCnt)";
+		$_ = "\n## $sectionCnt. $s<a id=s$sectionCnt></a>\n";
+	} elsif (/\\subsection\{(.+?)\}\s*$/) {
+		my $s = $1;
+		++$subSectionCnt;
+		push @sections, "\t- [$sectionCnt.$subSectionCnt $s](#s${sectionCnt}_$subSectionCnt)";
+		$_ = "\n### $sectionCnt.$subSectionCnt $s<a id=s${sectionCnt}_$subSectionCnt></a>\n";
+	}
+
+	if (/(\\footnotetext\{%|^\\begin\{acknowledgements\})/) { print "> "; next; }
+
+	# Citations
+	s!\\citep\{([,\w]+)\}!'(['.join('][], [',split(/,/,$1)).'][])'!eg;	# cite-paranthesis without any prefix text
+	s!\\citep\[(.+?)\]\[\]\{(\w+)\}!'('.$1.' ['.join('][], [',split(/,/,$2)).'][])'!eg;	# citep with prefix text
+	#s/\\citep(|\[.*?\]\[\])\{(\w+)\}/'('.(length($1)>4?substr($1,1,-3).' ':'').'['.join('], [',split(',',$2)).'][])'/eg;
+	# First approach, now obsolete through above eval()-approach
+	#s/\\citep\{(\w+)\}/([$1][])/g;
+	#s/\\citep\{(\w+),(\w+)\}/([$1][], [$2][])/g;
+	#s/\\citep\{(\w+),(\w+),(\w+)\}/([$1][], [$2][], [$3][])/g;
+	#s/\\citep\{(\w+),(\w+),(\w+),(\w+)\}/([$1][], [$2][], [$3][], [$4][])/g;
+	#s/\\citep\{(\w+),(\w+),(\w+),(\w+),(\w+)\}/([$1][], [$2][], [$3][], [$4][], [$5][])/g;
+	#s/\\citep\{(\w+),(\w+),(\w+),(\w+),(\w+),(\w+)\}/([$1][], [$2][], [$3][], [$4][], [$5][], [$6][])/g;
+	#s/\\citep\{(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+)\}/([$1][], [$2][], [$3][], [$4][], [$5][], [$6][], [$7][])/g;
+	#s/\\citep\{(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+)\}/([$1][], [$2][], [$3][], [$4][], [$5][], [$6][], [$7][], [$8][])/g;
+	#s/\\citep\{(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+)\}/([$1][], [$2][], [$3][], [$4][], [$5][], [$6][], [$7][], [$8][], [$9][])/g;
+	#s/\\citep\{(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+),(\w+)\}/([$1][], [$2][], [$3][], [$4][], [$5][], [$6][], [$7][], [$8][], [$9][], [$10][])/g;
+	s!\\(citet|citeauthor)\{([,\w]+)\}!'['.join('][], [',split(/,/,$2)).'][]'!eg;	# we handle citet+citeauthor the same
+	#s/\\citet\{(\w+)\}/[$1][]/g;
+
+	print;
+
+	print "\$\$\n" if (/(\\end\{equation\}|\\end\{align\})/);	# enclose with $$ #2
+}
+
+
+print "## Literature<a id=Literature></a>\n";
+for (@sections) {
+	print $_ . "\n";
+}
+++$sectionCnt;
+print "- [$sectionCnt. Literature](#Literature)\n";
+
+
