@@ -20,24 +20,43 @@ my ($emptyUA,$badURL,$badReferer,$smallUA) = (0,0,0,0);
 
 
 my %classC = (
+	'3.14.15' => 0, '35.163.97' => 0, '44.236.48' => 0, '52.27.26' => 0,	# Compute Amazon AWS
+	'3.238.137' => 0,	# Amazon EC2
 	'5.188.210' => 0,	# DogHostNetwork in Russia
+	'34.68.34' => 0, '34.148.59' => 0,	# Google user content, Google cloud customers
+	'45.10.26' => 0,	# Michael Schinzel
 	'45.86.200' => 0,
 	'45.128.199' => 0,	# PANQ in Netheland
 	'64.124.8' => 0,	# Zayo
 	'74.80.208' => 0,	# Castle Global @ thehive.ai
 	'85.203.21' => 0,	# VPN Consumer Network Singapore
+	'89.22.232' => 0,	# hosted-by-vdsina.ru, Moscow
+	'89.22.233' => 0,	# hosted-by-vdsina.ru, Moscow
+	'89.22.234' => 0,	# hosted-by-vdsina.ru, Moscow
+	'89.22.235' => 0,	# hosted-by-vdsina.ru, Moscow
+	'185.197.74' => 0,	# hosted-by-vdsina.ru, Moscow
+	'194.113.106' => 0,	# hosted-by-vdsina.ru, Moscow
+	'193.188.20' => 0,	# hosted-by-vdsina.ru, Moscow
+	'193.188.21' => 0,	# hosted-by-vdsina.ru, Moscow
+	'213.219.247' => 0,	# hosted-by-vdsina.ru, Moscow
+	'128.1.248' => 0,	# Zenlayer Inc
+	'128.14.133' => 0,	# Zenlayer Inc
+	'183.136.225' => 0,	# China Leon Ship Network Limited
 	'185.82.72' => 0,	# NL Layerswitch
 	'192.168.0' => 0,	# local network
 	'192.168.178' => 0,	# local network
-	'185.82.72.200' => 0	# NL Layerswitch
+	'193.118.53' => 0	# US-Zenlayer-AMS-BMC
 );
 my %ips = (
 	'2.57.122.98' => 0,	# PPTechnology.cc
-	'3.84.244.156' => 0, '3.94.81.106' => 0, '3.219.212.117' => 0, '18.212.118.57' => 0, '18.232.89.176' => 0,
-	'34.239.184.105' => 0, '44.200.160.109' => 0, '54.80.126.99' => 0, '54.162.60.209' => 0,
+	'3.14.82.69' => 0, '3.81.167.180' => 0, '3.84.244.156' => 0, '3.94.81.106' => 0, '3.129.111.220' => 0, '3.143.220.59' => 0,
+	'3.219.212.117' => 0, '18.212.118.57' => 0, '18.232.89.176' => 0,
+	'34.239.184.105' => 0, '35.174.0.125' => 0, '44.200.160.109' => 0, '44.210.239.137' => 0,
+	'54.80.126.99' => 0, '54.162.60.209' => 0,
 	'54.164.82.20' => 0, '54.175.209.89' => 0, '54.196.194.235' => 0, '54.197.65.200' => 0,
 	'54.211.110.230' => 0, '54.221.123.72' => 0, '54.226.71.23' => 0, '54.226.76.89' => 0,	# compute-1.amazonaws.com
 	'37.20.208.218' => 0,	# Siberia rt.ru
+	'43.135.21.117' => 0,	# Tencent Hong Kong
 	'46.4.62.166' => 0,	# Hetzner
 	'45.8.17.18' => 0, '45.8.17.19' => 0, '45.8.17.23' => 0, '45.8.17.35' => 0,	# TnR Technologies in Netherland
 	'45.61.187.81' => 0,	# FranTech
@@ -45,19 +64,24 @@ my %ips = (
 	'45.155.204.146' => 0,	# hostway.ru Russia
 	'60.217.75.69' => 0, '61.147.15.67' => 0,	# China
 	'62.138.2.14' => 0, '62.138.2.214' => 0, '62.138.2.160' => 0,
-	'62.138.3.52' => 0, '62.138.6.15' => 0, '85.25.210.23' => 0, '92.204.54.123' => 0,	# startdedicated.de
+	'62.138.3.52' => 0, '62.138.6.15' => 0, '85.25.177.187' => 0, '85.25.210.23' => 0, '92.204.54.123' => 0,	# startdedicated.de
 	'62.210.127.188' => 0,	# poneytelecom.eu
+	'64.62.134.189' => 0,	# Hurricane Electric, Fremont, CA
 	'66.240.192.138' => 0, '66.240.219.133' => 0, '66.240.219.146' => 0, '66.240.236.119' => 0,
 	'71.6.135.131' => 0, '71.6.146.130' => 0, '71.6.146.185' => 0, '71.6.158.166' => 0,
 	'71.6.165.200' => 0, '71.6.167.142' => 0, '71.6.199.23' => 0, '80.82.77.33' => 0,
 	'80.82.77.139' => 0, '82.221.105.6' => 0, '82.221.105.7' => 0,	# shodan.io
 	'85.203.21.67' => 0,	# VPN consumer network Singapore
 	'71.6.232.4' => 0,	# quadmetrics.com
+	'83.97.73.89' => 0,	# redbytes.ru Sankt-Peterburg
 	'84.244.19.15' => 0, '84.244.23.8' => 0, '84.244.32.151' => 0,	# irknet.ru
 	'91.240.118.252' => 0,	# changway.hk
 	'94.232.45.12' => 0,	# Dmitriy Panchenko
 	'103.50.168.236' => 0,	# goalbd.net
+	'104.171.152.143' => 0,	# DedFiberCo
+	'103.87.142.39' => 0,	# Balaji Cable And Internet India
 	'109.102.111.20' => 0,	# Telekom_Romania
+	'117.132.188.205' => 0,	# China Mobile Communications Corporation
 	'127.0.0.1' => 0,	# localhost
 	'128.14.134.170' => 0, '193.118.53.194' => 0,	# Zenlayer.com
 	'138.246.253.24' => 0, '106.55.250.60' => 0,	# various robots.txt reader
@@ -66,56 +90,68 @@ my %ips = (
 	'158.69.195.206' => 0,	# OVH Montreal
 	'178.158.11.102' => 0, '178.158.65.110' => 0,	# mageal.ru
 	'180.112.224.7' => 0,	# Chinanet Jiangsu Province Network
-	'183.136.225.32' => 0, '183.136.225.35' => 0,	# China Leon Ship Network
+	'184.170.240.210' => 0,	# Total Server Solutions, Phoenix, AZ
+	'181.177.121.45' => 0,	# IT World Washington
 	'185.7.214.104' => 0,	# Hong Kong
 	'193.106.29.210' => 0,	# Ukraine Infiumhost.com
 	'193.106.191.48' => 0,	# Russian Kanzas LLC
 	'195.54.160.149' => 0,	# laincou.name
+	'205.234.232.211' => 0,	# Server Central Illinois
+	'212.164.206.182' => 0, '212.164.207.174' => 0,	# Novosibirsk Local Telephone Company (NGTS)
+	'213.109.202.66' => 0,	# Chang Way Technologies, Hong Kong
 	'213.226.123.186' => 0	# Novoselov Saint Petersburg
 );
 my %errorCode = ( 301 => 0, 302 => 0, 303 => 0, 400 => 0, 403 => 0, 404 => 0, 405 => 0, 500 => 0, 501 => 0, 503 => 0, 505 => 0 );
 my %bots = (
 	'{jndi' => 0,
 	'360spider' => 0, adsbot => 0, 'adsbot.html' => 0, adscanner => 0, ahrefsbot => 0, ahrefssiteaudit => 0,
-	aiohttp => 0, amazonbot => 0,
-	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0, awariosmartbot => 0,
-	baiduspider => 0, 'baiduspider-render' => 0, barkrowler => 0, bingbot => 0, bingpreview => 0,
-	blexbot => 0, bytespider => 0,
+	aiohttp => 0, amazonbot => 0, antbot => 0, 'apache-httpclient' => 0,
+	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0, awariobot => 0, awariosmartbot => 0, axios => 0,
+	baiduspider => 0, 'baiduspider-render' => 0, barkrowler => 0, beskuttlebot => 0, bingbot => 0, bingpreview => 0,
+	bitsightbot => 0, blexbot => 0, 'bnf.fr_bot' => 0, bytespider => 0,
 	ccbot => 0, censysinspect => 0, 'chrome-lighthouse' => 0,
-	'clark-crawler2' => 0, 'coccocbot-image' => 0, 'coccocbot-web' => 0, coibotparser => 0,
-	crawler => 0, crawler2 => 0, 'crawler.php' => 0,
+	'clark-crawler2' => 0, clickagy => 0, 'coccocbot-image' => 0, 'coccocbot-web' => 0,
+	coibotparser => 0, colly => 0, cow => 0, crawler => 0, crawler2 => 0, 'crawler.php' => 0,
 	criteobot => 0, curl => 0,
 	dareboost => 0, dataforseobot => 0, detection => 0, 'dingtalkbot-linkservice' => 0,
-	discordbot => 0, dotbot => 0,
+	discordbot => 0, domainstatsbot => 0, dotbot => 0, down => 0,
 	duckduckbot => 0, 'duckduckgo-favicons-bot' => 0,
 	entferbot => 0, expanse => 0,
-	facebookexternalhit => 0, 'feedsearch-crawler' => 0, 'flat-crawler' => 0, fluid => 0,
+	facebookexternalhit => 0, 'feedsearch-crawler' => 0, 'fidget-spinner-bot' => 0,
+	'flat-crawler' => 0, flipboardproxy => 0, fluid => 0,
 	'gdnplus.com' => 0, gnu => 0, 'go-http-client' => 0,
-	googlebot => 0, 'googlebot-image' => 0,
-	hello => 0,
+	googlebot => 0, 'googlebot-image' => 0, gptbot => 0,
+	hello => 0, 'hkfl-bot' => 0,
 	infotigerbot => 0, internetmeasurement => 0, ioncrawl => 0,
+	'java-http-client' => 0,
+	'kirkland-signature' => 0,
 	l9explore => 0, l9tcpid => 0, 'libwww-perl' => 0, lighthouse => 0, 'linespider' => 0,
 	linkdexbot => 0, linkedinbot => 0, 'linkfluence.com' => 0, livelapbot => 0, ltx71 => 0,
-	masscan => 0, 'masscan-ng' => 0, mediapartners => 0, 'mediapartners-google' => 0,
-	megaindex => 0, mindupbot => 0, mj12bot => 0, modabot => 0, mojeekbot => 0, mozilliqa => 0, mrgbot => 0,
+	masscan => 0, 'masscan-ng' => 0, mediapartners => 0, 'mediapartners-google' => 0, mediatoolkitbot => 0,
+	megaindex => 0, mindupbot => 0, mj12bot => 0, mjbot => 0, modabot => 0, mojeekbot => 0, mozilliqa => 0, mrgbot => 0,
 	netcraft => 0, netcraftsurveyagent => 0, netestate => 0, netpeakcheckerbot => 0,
 	'netsystemsresearch.com' => 0,
-	neevabot => 0, nicecrawler => 0, ninjbot => 0, 'node-fetch' => 0, nuclei => 0,
+	neevabot => 0, nicecrawler => 0, ninjbot => 0, node => 0, 'node-fetch' => 0, nuclei => 0,
 	onalyticabot => 0,
 	petalbot => 0, phxbot => 0, pingdompagespeed => 0, pinterestbot => 0, 'project-resonance' => 0,
-	proximic => 0, 'pulsepoint-ads.txt-crawler' => 0, 'python-requests' => 0,
-	sabsimbot => 0, scaninfo => 0, screaming => 0, seekportbot => 0, semanticbot => 0,
-	semrushbot => 0, 'semrushbot-ba' => 0, seocompany => 0, seolyt => 0,
-	serendeputybot => 0, seznambot => 0, sitecheckerbotcrawler => 0,
+	proximic => 0, 'pulsepoint-ads.txt-crawler' => 0, 'python-httpx' => 0, 'python-requests' => 0,
+	rankmathapi => 0, 'redbot.org' => 0, research => 0,
+	saashub => 0, sabsimbot => 0, 'scanner.ducks.party' => 0, scaninfo => 0, scrapy => 0, screaming => 0,
+	seekportbot => 0, semanticbot => 0,
+	semrushbot => 0, 'semrushbot-ba' => 0, seocompany => 0, seolyt => 0, seositecheckup => 0,
+	serendeputybot => 0, seznambot => 0, siteauditbot => 0, sitecheckerbotcrawler => 0,
 	sitelockspider => 0, sitesucker => 0,
-	slackbot => 0, 'slack-imgproxy' => 0, smtbot => 0, surdotlybot => 0,
-	tchelebi => 0, trendsmapresolver => 0, tweetmemebot => 0, twingly => 0, twitterbot => 0,
-	ucrawl => 0,
-	virustotal => 0, 'web-crawler' => 0, 'webmeup-crawler' => 0,
+	slackbot => 0, 'slackbot-linkexpanding' => 0, 'slack-imgproxy' => 0, smtbot => 0, spacecowboys => 0,
+	stormcrawler => 0, stractbot => 0, surdotlybot => 0,
+	tchelebi => 0, 'test-bot' => 0, tinytestbot => 0, trendiction => 0, trendictionbot => 0, trendsmapresolver => 0,
+	turnitin => 0, tweetmemebot => 0, twingly => 0, twitterbot => 0,
+	ucrawl => 0, 'um-ln' => 0, undici => 0,
+	'validator.nu' => 0, virustotal => 0,
+	w3c_validator => 0, w3c_css_validator_jfouffa => 0, 'web-crawler' => 0, 'webmeup-crawler' => 0,
 	webprosbot => 0, 'webpros.com' => 0, woorankreview => 0,
 	'x-fb-crawlerbot' => 0, xfa1 => 0, yacybot => 0,
 	yandexbot => 0, yandexfavicons => 0, yandeximageresizer => 0, yandeximages => 0, yandexmetrika => 0,
-	yandexnews => 0, yandexrenderresourcesbot => 0, youbot => 0,
+	yandexnews => 0, yandexrenderresourcesbot => 0, yeti => 0, youbot => 0,
 	zgrab => 0,
 );
 
