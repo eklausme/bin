@@ -4,9 +4,10 @@
 #    2. Sorted list of literature entries
 #
 # Elmar Klausmeier, 30-Sep-2023
+# Elmar Klausmeier, 02-Dec-2023: adapting for Roman's bachelor thesis
 
 use strict;
-my ($inArticle,$entry,$entryOrig,$type) = (0,"","");
+my ($i,$inArticle,$entry,$entryOrig,$type,$debug) = (0,0,"","",0);
 my %H;	# hash of hash (each element in hash is a yet another hash)
 my %Journals = (	# see http://cdsads.u-strasbg.fr/abs_doc/aas_macros.html
 	'\aap'   => 'Astronomy & Astrophysics',
@@ -19,17 +20,23 @@ my %Journals = (	# see http://cdsads.u-strasbg.fr/abs_doc/aas_macros.html
 );
 
 while (<>) {
-	if (/^@(article|book|inproceedings|misc|software)\{(\w+),$/) {
+	chomp;
+	s/\s+$//;	# rtrim
+	if (/^@(article|book|inproceedings|misc|phdthesis|software)\{([\-\w]+),$/) {
 		($type,$entry,$entryOrig,$inArticle) = ($1,uc $2,$2,1);
 		$H{$entry}{'entry'} = $entryOrig;
 		$H{$entry}{'type'} = $type;
-		#printf("\t\tentry = |%s|, type = |%s|\n",$entry,$type);
+		printf("\t\tentry=|%s|, type=|%s|\n",$entry,$type) if ($debug);
 	} elsif ($inArticle) {
 		if (/^}\s*$/) { $inArticle = 0; next; }
-		if (/^\s+(\w+)\s*=\s*(.+)(|,)$/) {
+		if (/^\s*(\w+)\s*=\s*(.+)(|,)$/) {
 			my ($key,$value) = ($1,$2);
+			$value =~ s/^"//;	# drop leading and trailing quotes
+			$value =~ s/,$//;
+			$value =~ s/"$//;
 
 			# LaTeX foreign language character handling
+			$value =~ s/\\ss\{\}/ß/g;
 			$value =~ s/\{\\ss\}/ß/g;
 			$value =~ s/\{\\"A\}/Ä/g;
 			$value =~ s/\{\\"U\}/Ü/g;
@@ -40,6 +47,7 @@ while (<>) {
 			$value =~ s/\{\\H\{o\}\}/ő/g;
 			$value =~ s/\{\\"\\i\}/ï/g;
 			$value =~ s/\{\\"o\}/ö/g;
+			$value =~ s/\\"\{o\}/ö/g;
 			$value =~ s/\{\\'A\}/Á/g;	# accent aigu
 			$value =~ s/\{\\'E\}/É/g;	# accent aigu
 			$value =~ s/\{\\'O\}/Ó/g;	# accent aigu
@@ -72,7 +80,7 @@ while (<>) {
 			$value =~ s/\{|\}|\~//g;	# drop {}~
 			$value =~ s/,$//;	# drop last comma
 			$H{$entry}{$key} = $value;
-			#printf("\t\t\tentry = |%s|, key = |%s|\n", $entry, $key);
+			printf("\t\t\tentry=|%s|, key=|%s|, value=|%s|\n", $entry, $key, $value) if ($debug);
 		}
 	}
 }
@@ -83,7 +91,9 @@ for my $e (sort keys %H) {
 	my $url = 
 	printf("[%s]: %s\n", $H{$e}{'entry'},
 		exists($H{$e}{'doi'}) ? 'https://doi.org/'.$H{$e}{'doi'}
-		: exists($H{$e}{'url'}) ? $H{$e}{'url'} : '#Literature');
+		: defined($H{$e}{'url'}) ? $H{$e}{'url'}
+		: defined($H{$e}{'eprint'}) ? 'https://arxiv.org/abs/'.$H{$e}{'eprint'}
+		: '#Literature');
 }
 print("\n");
 
@@ -105,11 +115,18 @@ for my $e (sort keys %H) {
 		$journal .= ", pp. " . $$He->{'pages'} if (exists($$He->{'pages'}));
 	}
 
-	printf("1. \\[%s\\] %s: _%s_, %s%s%s\n", $H{$e}{'entry'}, $H{$e}{'author'},
+	printf("%d. \\[%s\\] %s: _%s_, %s%s%s%s%s%s%s%s%s%s\n", ++$i, $H{$e}{'entry'}, $H{$e}{'author'},
 		defined($H{$e}{'title'}) ? $H{$e}{'title'} : $H{$e}{'howpublished'},
 		$date, $journal,
+		defined($H{$e}{'booktitle'}) ? ', ' . $H{$e}{'booktitle'} : '',
+		defined($H{$e}{'publisher'}) ? ', ' . $H{$e}{'publisher'} : '',
+		defined($H{$e}{'school'}) ? ', ' . $H{$e}{'school'} : '',
+		defined($H{$e}{'address'}) ? ', ' . $H{$e}{'address'} : '',
+		defined($H{$e}{'series'}) ? ', ' . $H{$e}{'series'} : '',
+		defined($H{$e}{'location'}) ? ', ' . $H{$e}{'location'} : '',
 		exists($H{$e}{'doi'}) ? ', https://doi.org/'.$H{$e}{'doi'}
-		: exists($H{$e}{'url'}) ? ', ' . $H{$e}{'url'} : ''
+		: defined($H{$e}{'url'}) ? ', ' . $H{$e}{'url'} : '',
+		exists($H{$e}{'eprint'}) ? ', https://arxiv.org/abs/'.$H{$e}{'eprint'} : ''
 	);
 }
 

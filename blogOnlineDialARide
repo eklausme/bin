@@ -1,0 +1,343 @@
+#!/bin/perl -W
+# Convert Roman's bachelor thesis with title "Online Dial-A-Ride" from LaTeX format to something resembling Markdown
+# Manual post-processing is still necessary but a lot easier
+#
+# Elmar Klausmeier, 19-Nov-2023
+# Elmar Klausmeier, 02-Dec-2023: finish+correct tables with literature references
+
+use strict;
+my ($ignore,$inTable,$inAlgo,
+	$chapterCnt,$sectionCnt,$subSectionCnt,$theoremCnt,$itemCnt,
+	$claimCnt,$eqnCnt,$eqnFlag,$tableCnt,$tabInsert,$caseCnt,
+	$enumerate,$prefix) = (0,0,0, 0,0,0,0,0, 0,0,0,0,0,0, 0,"");
+my (@sections) = ();
+my (%H,%Hphp) = ( (), () );  # hash for key=\label, value=\ref, in our case for lemmatas and theorems
+my @table = (
+'
+Case    | ABORT                      | open | closed
+--------|----------------------------|------|---------
+general | uncapacitated ($c=\infty$) | 3    | 2.5
+general | preemptive                 | 3    | 2.5
+
+',
+'
+Case    | ABORT-AND-WAIT             | open   | closed
+--------|----------------------------|--------|---------
+general | uncapacitated ($c=\infty$) | 2.4142 | 2.5
+general | preemptive                 | 2.4142 | 2.5
+
+',
+'
+Case    | General Bounds                | open<br>lower bound | open<br>upper bound | closed<br>lower bound | closed<br>upper bound
+--------|-------------------------------|---------------------|---------------------|-----------------------|----------------------
+general | non-preemptive $(c < \infty)$ | 2.0585 | 2.6180 ([MLipmann][]) | 2 | 2 ([Ascheuer][])
+general | uncapacitated $(c=\infty)$    | 2.0346 | 2.4142 ([BjeldeDisser17][]) | 2 | 2
+general | preemptive                    | 2.0346 | __2.4142__ | 2 (Thm 3.2 in [Ausiello][]) | 2
+general | TSP                           | 2.0346 | 2.4142 | 2 | 2
+---     |                               |        |        |   |
+line    | non-preemptive $(c < \infty)$ | 2.0585 (Thm 1 in [Birx19][]) | 2.6180 | 1.75 ([BjeldeDisser17][]) | 2
+line    | uncapacitated $(c=\infty)$    | 2.0346 | 2.4142 | 1.6404 | 2
+line    | preemptive                    | 2.0346 | 2.4142 ([BjeldeDisser17][]) | 1.6404 | 2
+line    | TSP                           | 2.0346 ([BjeldeDisser17][]) | 2.4142 ([BjeldeDisser17][]) | 1.6404 (Thm 3.3 in [Ausiello][]) | 1.6404 ([BjeldeDisser17][])
+---     |                               |        |        |   |
+halfline| non-preemptive $(c < \infty)$ | 1.8968 ([MLipmann][]) | 2.6180 | 1.7071 ([Ascheuer][]) | 2
+halfline| uncapacitated $(c=\infty)$    | 1.6272 | 2.4142 | 1.5 | __1.8536__
+halfline| preemptive                    | 1.6272 | 2.4142 | 2 | 2
+halfline| TSP                           | 1.6272 | 2.4142 ([MLipmann][]) | 1.5 ([MRIN][]) | 1.5 ([MRIN][])
+
+
+'
+);
+
+print <<'EOF';
+---
+date: "2020-10-15 14:00:00"
+title: "Online Dial-A-Ride"
+description: "We consider the online Dial-a-Ride Problem where objects are to be transported between points in a metric space in the shortest possible completion time."
+MathJax: true
+categories: ["mathematics"]
+tags: ["ABORT-OR-REPLAN", "Dial-A-Ride", "online optimization"]
+author: "Roman Edenhofer"
+---
+
+
+<!-- https://docs.mathjax.org/en/latest/input/tex/eqnumbers.html -->
+<script type="text/javascript">
+	window.MathJax = { tex: { tags: 'ams' } };
+</script>
+
+<?php	// forward references in text
+	$tab__ABORT = "1";
+	$tab__AAW = "2";
+	$tab__state_of_the_art = "3";
+	$lemma__new_extreme = "3.11";
+	$lemma__waiting = "3.12";
+	$lemma__aborting = "3.13";
+	$lemma__abc = "3.14";
+	$lemma__unique_tour = "3.15";
+	$lemma__upwards = "!unknown!";
+?>
+
+
+EOF
+
+while (<>) {
+	chomp;
+	if (/\\end\{tabular\}/) { $ignore = 0; next; }
+	next if ($ignore);
+
+	# In this particular case we replace the two algorithms with a corresponding screenshot
+	#if (/^\\begin\{algorithm/) {
+	#	$replaceAlgo = 1;
+	#	next;
+	#} elsif ($replaceAlgo == 1) { next; }
+
+	#if (/^\\begin\{table/) {
+	#	$replaceTable = 1;
+	#	next;
+	#} elsif (/^\\end\{table/) {
+	#	$replaceTable = 0;
+	#	next;
+	#} elsif ($replaceTable == 1) { next; }
+
+	next if (/\\addcontentsline\{toc\}/);
+
+	# Space handling
+	s/\s+$//g;	# rtrim
+	s/^\s+//g;	# ltrim, i.e., erase leading space
+	s/\~/ /g;
+
+	s/\s+%\s+[^%].+$//;	# Drop LaTeX comments
+	s/^%.*//g;
+
+	s/\\normalsize//;
+	if (/\\end\{table\}/) {
+		print $table[$tabInsert++];
+		$inTable = 0;
+		next;
+	}
+	if ($inTable) {
+		s/\\caption\{([^\}]+)\}/\n\n__Table $tableCnt:__ $1\n/;
+	}
+	if (/\\begin\{table\}/) {
+		($ignore,$inTable) = (1,1);
+		next;
+	}
+
+	# Special cases:
+	#s/able \\ref\{tab: state of the art\} gives/able "state of the art" gives/;
+	s/ \\AOR-server / AOR-server /g;	# \AOR outside of math-mode
+	s/ while \\\\ / while /;
+	# MathJax bug prevention
+	s/^Suppose that \$\(L\^\*/Suppose that\n\$\$\n\(L\^\*/;
+	s/ p_R\$\./ p_R\.\n\$\$/;
+	s/L\^\*/L\^\{\\ast\}/g;
+	s/\{t\^start\}/\{eqn: t\^start\}/g;
+	# forward reference resolution
+	s/\\ref\{lemma: waiting\}/[\<\?=\$lemma__waiting\?>\](#lemma__waiting)/g;
+	# MathJax shortcoming
+	s/\\makebox\[0pt\]\{\\text\{(|\\scriptsize)/\{\{/;
+	# double } resolution in eqn:
+	s/eqn: OPT\(t_\{i-j\}\)/eqn: OPT\(t_Ci-jD\)/g;
+	s/eqn: p\^\{AOR\}/eqn: p^cAORd/g;
+	s/eqn: T\^\{return\}/eqn: T\^CreturnD/g;
+	s/eqn: L\^\{\\ast\}/eqn: L\^C\\astD/g;
+	# Some simple conversions to Markdown
+	s/\\textit\{([^\}]+)\}/_$1_/g;
+
+	#if (/(\\(begin|end)\{equation\}|\\(begin|end)\{align(|\*)\})/) {
+	if (/\\begin\{align(|\*)\}/) {
+		print "\$\$\n\\begin{align$1}\n";
+		next;
+	} elsif (/\\end\{align(|\*)\}/) {
+		if ($eqnFlag) { print "\\end{align$1}\n\t\\tag{$eqnCnt}\n\$\$\n"; $eqnFlag = 0; }
+		else { print "\\end{align$1}\n\$\$\n"; }
+		next;
+	}
+	if (/\\begin\{algorithm\}/) {
+		($inAlgo,$prefix) = (1,'> ');
+		next;
+	} elsif (/\\end\{algorithm\}/) {
+		($inAlgo,$prefix) = (0,'');
+		next;
+	}
+	if ($inAlgo == 1) {
+		next if (/\\SetKwData|\\SetKwFunction|\\SetKwInOut/);
+		s/\\;$/<br>/;
+		s/\\caption\{(.+)\}$/__$1__<br>/;
+		s/\\Input\{(.+)\}$/__input:__ $1/;
+		s/\\Output\{(.+)\}$/__output:__ $1/;
+	}
+
+	++$theoremCnt if (/\\begin\{(theorem|lemma|remark)\}/);
+	++$claimCnt if (/\\begin\{claim\}/);
+	++$caseCnt if (/\\begin\{case\}/);
+	s/\\begin\{definition\}/<p><\/p>\n\n---\n\n__Definition.__/;
+	s/\\begin\{theorem\}/<p><\/p>\n\n---\n\n__Theorem ${chapterCnt}.${theoremCnt}.__/;
+	s/\\begin\{lemma\}/<p><\/p>\n\n---\n\n__Lemma ${chapterCnt}.${theoremCnt}.__/;
+	s/\\begin\{remark\}/<p><\/p>\n\n---\n\n__Remark ${chapterCnt}.${theoremCnt}.__/;
+	s/\\begin\{claim\}/<p><\/p>\n\n__Claim ${claimCnt}.__/;
+	s/\\begin\{case\}/<p><\/p>\n\n_Case ${caseCnt}._/;
+	s/\\end\{(theorem|lemma|remark|claim|case)\}//;
+	s/\\end\{definition\}/\n---\n<p><\/p>\n/;
+	s/\\begin\{proof\}/<p><\/p>\n\n_Proof._/;
+	s/\\end\{proof\}/&nbsp; &nbsp; &#9744;\n\n/;
+
+	if (/^\\label\{(.+)\}$/) {
+		my ($phpvar,$key) = ($1,$1);
+		$phpvar =~ s/( |:|"|\^|\{|\}|<|>|\\|\/|\*)/_/g;	# create valid PHP variable out of \label
+		$Hphp{$key} = $phpvar;
+		if ($key =~ /^(th|lemma)/) {
+			$H{$key} = "${chapterCnt}.${theoremCnt}";
+		} elsif ($key =~ /^eqn/) {
+			++$eqnCnt;
+			$eqnFlag = 1;
+			$H{$key} = "${eqnCnt}";
+			next;
+		} elsif ($key =~ /^claim/) {
+			$H{$key} = "${claimCnt}";
+		} elsif ($key =~ /^chapter/) {
+			$H{$key} = "s${chapterCnt}";
+		} elsif ($key =~ /^tab/) {
+			++$tableCnt if (!defined($H{$key}));
+			$H{$key} = "${tableCnt}";
+		} else {
+			$H{$key} = "unknown hash H: key=$key";
+		}
+		#$_ = '<a id="'.$phpvar.'"></a>';
+		$_ = '<a id="'.$phpvar.'"></a><?php $'.$phpvar.'="'.$H{$key}.'"; ?>';
+	}
+	#s/\\ref\{(.+?)\}(\)|\.| )/\[$H{$1}\](#s$H{$1})$2/g;
+	#s/\\ref\{(.+?)\}(\.| )/\[$H{$1}\](#"s$1")$2/g;
+	#s/\\ref\{(.+?)\}(\.| )/\[$H{$1}\](#\*<\?=\$$Hphp{$1}\?>\*)$2/g;
+	#s/\\ref\{(.+?)\}(\.| )/\[$H{$1}\](#$Hphp{$1})$2/g;
+	#good (almost): s/\\ref\{(.+?)\}(\.| )/\[<\?=\$$Hphp{$1}\?>\](#$Hphp{$1})$2/g;
+	#while (/\\ref\{(.+?)\}(\.|\)| )/g) {
+	while (/\\ref\{([^\}]+?)\}/g) {
+		my $key = $1;
+		if (!defined($H{$key})) {
+			print STDERR "key=|$key| undefined in H\n";
+			my $phpvar = $1;
+			$phpvar =~ s/( |:|"|\^|\{|\}|<|>|\\|\/|\*)/_/g;	# create valid PHP variable out of \label
+			$Hphp{$key} = $phpvar;
+			if ($key =~ /^tab/) {	# unfortunately, tables are forward referenced
+				++$tableCnt;
+				$H{$key} = "tab${tableCnt}";
+			}
+		}
+		if ($key =~ /^eqn/) {
+			s/\\ref\{(.+?)\}/$H{$1}/g;
+		} else {
+			s/\\ref\{(.+?)\}(\.|\)| )/\[<\?=\$$Hphp{$1}\?>\](#$Hphp{$1})$2/g;
+		}
+	}
+
+	# Substitute own TeX macros
+	s/\\N([^\w])/\\mathbb\{N\}$1/g;
+	s/\\R([^\w])/\\mathbb\{R\}$1/g;
+	#s/\\Q([^\w])/\\mathbb\{Q\}$1/g;
+	#s/\\M([^\w])/\\mathcal\{M\}$1/g;
+	s/\\ABORT/\\hbox\{ABORT\}/g;
+	s/\\OPT/\\hbox\{OPT\}/g;
+	s/\\ALG/\\hbox\{ALG\}/g;
+	s/\\AAW/\\hbox\{AAW\}/g;
+	s/\\AOR/\\hbox\{AOR\}/g;
+	s/\\DOWN/\\hbox\{DOWN\}/g;
+	s/\\abort/\\hbox\{abort\}/g;
+	s/\\replan/\\hbox\{replan\}/g;
+	s/\\diff/\\hbox\{diff\}/g;
+	s/\\prepared/\\hbox\{prepared\}/g;
+	s/\\start/\\hbox\{start\}/g;
+	s/\\ente/\\hbox\{ente\}/g;
+	s/\\move/\\hbox\{move\}/g;
+	s/\\waituntil/\\hbox\{waituntil\}/g;
+	s/\\return/\\hbox\{return\}/g;
+	s/\\new/\\hbox\{new\}/g;
+	s/\\Return/__return:__/g;
+
+	s/\\Tilde/\\tilde/g;
+
+	# Lines to drop, not relevant
+	#next if (/(^\\maketitle|^%\s+|^%In general|^\\date|^\\begin\{figure|^\\end\{figure|\s+\\centering|\s+\\begin\{split\}|\s+\\end\{split\}|^\s*\\label|^\\end\{acknowledgements\}|^\\FloatBarrier|^\\bibliograph|^\\end\{algorithm\}|^\\begin\{appendix|^\\end\{appendix\}|^\\end\{document\})/);
+	next if (/\\DontPrintSemicolon/);
+
+	if (/\\begin\{itemize\}/) {
+		($enumerate,$itemCnt,$_) = (0,1,'');
+	} elsif (/\\begin\{enumerate\}/) {
+		($enumerate,$itemCnt,$_) = (1,1,'');
+	} elsif (/\\end\{(itemize|enumerate)\}/) {
+		($enumerate,$itemCnt,$_) = (0,0,'');
+	}
+	if (/^\\item /) {
+		if ($enumerate) {
+			s/\\item /${itemCnt}. /;
+			++$itemCnt;
+		} else {
+			s/\\item /\* /;
+		}
+	}
+	if (/\\item\[([^\]]+)\]/) {
+		s/\\item\[([^\]]+)\]/${itemCnt}. /;
+		++$itemCnt;
+	}
+
+	# images
+	s/\s+\\includegraphics.+res\/(\w+)\}/!\[Photo\]\(\*<\?=\$rbase\?>\*\/img\/parsec_res\/$1\.png)/;
+	s/i\.e\.\\ /i.e., /g;
+
+	# sections + subsections
+	if (/\\chapter\*\{(\w+)\}/) {	# unnumbered section, line "Introduction"
+		my $s = $1;
+		push @sections, "- [$s](#s$s)";
+		$_ = "\n## $s<a id=s$s></a>\n";
+	} elsif (/\\chapter\{(.+?)\}\s*$/) {
+		my $s = $1;
+		++$chapterCnt; $sectionCnt = 0; $subSectionCnt = 0; $theoremCnt = 0;
+		push @sections, "- [$chapterCnt. $s](#s$chapterCnt)";
+		$_ = "\n## $chapterCnt. $s<a id=s$chapterCnt></a>\n";
+	} elsif (/\\section\{(.+?)\}\s*$/) {
+		my $s = $1;
+		++$sectionCnt; $subSectionCnt = 0;
+		push @sections, "- [$chapterCnt.$sectionCnt $s](#s${chapterCnt}_${sectionCnt})";
+		$_ = "\n### $chapterCnt.$sectionCnt $s<a id=s${chapterCnt}_$sectionCnt></a>\n";
+	} elsif (/\\subsection\{(.+?)\}\s*$/) {
+		my $s = $1;
+		++$subSectionCnt;
+		push @sections, "\t- [$chapterCnt.$sectionCnt.$subSectionCnt $s](#s${chapterCnt}_${sectionCnt}_$subSectionCnt)";
+		$_ = "\n#### $chapterCnt.$sectionCnt.$subSectionCnt $s<a id=s${chapterCnt}_${sectionCnt}_$subSectionCnt></a>\n";
+	}
+
+	#if (/(\\footnotetext\{%|^\\begin\{acknowledgements\})/) { print "> "; next; }
+
+	# Citations
+	s/\\citeauthor\{([\-\w]+)\} \\cite\{([\-\w]+)\}/\[$1\]\[\]/g;
+	#s!\\citep\{([,\w]+)\}!'(['.join('][], [',split(/,/,$1)).'][])'!eg;	# cite-paranthesis without any prefix text
+	#s!\\citep\[(.+?)\]\[\]\{(\w+)\}!'('.$1.' ['.join('][], [',split(/,/,$2)).'][])'!eg;	# citep with prefix text
+	#s!\\(citet|citeauthor)\{([,\w]+)\}!'['.join('][], [',split(/,/,$2)).'][]'!eg;	# we handle citet+citeauthor the same
+
+	# Corrections of typos
+	s/let us proof /let us prove /;
+	s/An online algorihtm/an online algorithm/;
+	# Shortening
+	s/\\section\*\{Acknowledgements\}.*//;
+	s/First of all I want to thank my supervisor Prof. Yann Disser for suggesting me this fascinating topic and helping me with useful literature./Thanks to [Prof. Yann Disser](https:\/\/www2.mathematik.tu-darmstadt.de\/\~disser\/) for suggesting this topic and useful literature./;
+	s/I also want to thank my friends Nicholas Pischke and Björn Schäfer for their thorough checking of the spelling of the manuscript. Last, but not least, I am very grateful to my family for all of their support in my life, for my education and otherwise./Nicholas Pischke and Björn Schäfer spell-checked the manuscript./;
+
+	print $prefix . $_ . "\n";
+
+}
+
+
+print "## Literature<a id=Literature></a>\n";
+for (@sections) {
+	print $_ . "\n";
+}
+++$sectionCnt;
+print "- [$sectionCnt. Literature](#Literature)\n";
+
+#print "<br>\n";
+#for my $k (sort keys %H) {
+#	printf("\tkey=|%s|, value=|%s|<br>\n",$k,$H{$k});
+#}
+
+
