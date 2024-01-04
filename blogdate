@@ -1,0 +1,65 @@
+#!/bin/perl -W
+# Generate year-overview
+# Command-line flags:
+#   -g           generate German title
+#   -p           prefix for URL, e.g., -p../
+#   -y<year>     generate file for <year>, e.g., -y2021
+#
+# Chdir to blog directory and run:
+#     for i in *; do ( echo $i; cd $i; blogdate -y$i *.md > index.md ) done
+# Another example with special prefix:
+#     for i in *; do ( echo $i; cd $i; blogdate -y$i -p'*<?=$rbase?>*'/blog/$i/ *.md > index.md ) done
+#
+# Elmar Klausmeier, 14-Nov-2021
+
+use strict;
+use Getopt::Std;
+
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+$year += 1900;
+
+my %opts = ('g' => 0, 'p' => '', 'y' => $year);
+getopts('gp:y:',\%opts);
+my $cnt = 0;
+$year = defined($opts{'y'}) ? $opts{'y'} : $year;
+my $mdtitle = defined($opts{'g'}) && $opts{'g'} ? "Jahr: $year" : "Index for Year $year";
+my $prefix = defined($opts{'p'}) ? $opts{'p'} : "";
+
+sub markdownfile(@) {
+	my $f = $_[0];
+	my ($flag,$title,$date) = (0,"","");
+	open(F,"<$f") || die("Cannot open $f");
+	while (<F>) {
+		if (/^\-\-\-\s*$/) {
+			last if (++$flag >= 2);
+		} elsif (/^title:\s+(.+)$/) {
+			$title = $1;
+			$title =~ s/^"//;
+			$title =~ s/"$//;
+		} elsif (/^date:\s+"(\d\d\d\d\-\d\d\-\d\d)/) {
+			$date = $1;
+		}
+	}
+	if (length($title) > 0  &&  length($date) > 0) {
+		printf("%d. %s: [%s](%s%s)\n",++$cnt,$date,$title,$prefix,substr($f,0,-3));
+	}
+	close(F) || die("Cannot close $f");
+}
+
+print <<EOS;
+---
+title: "$mdtitle"
+date: "$year-12-31 23:55:00"
+draft: false
+---
+
+EOS
+
+while (<@ARGV>) {
+	#printf("ARGV=|%s|\n",$_);
+	next if (substr($_,-8) eq "index.md");
+	markdownfile($_);
+}
+
+print "\n\n\n";
+
