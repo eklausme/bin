@@ -18,6 +18,7 @@ use Getopt::Std;
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 $year += 1900;
 
+
 my %opts = ('g' => 0, 'p' => '', 'y' => $year);
 getopts('gp:y:',\%opts);
 my $cnt = 0;
@@ -25,9 +26,10 @@ $year = defined($opts{'y'}) ? $opts{'y'} : $year;
 my $mdtitle = defined($opts{'g'}) && $opts{'g'} ? "Jahr: $year" : "Index for Year $year";
 my $prefix = defined($opts{'p'}) ? $opts{'p'} : "";
 
+
 sub markdownfile(@) {
 	my $f = $_[0];
-	my ($flag,$title,$date) = (0,"","");
+	my ($flag,$title,$date,$draft) = (0,"","",0);
 	open(F,"<$f") || die("Cannot open $f");
 	while (<F>) {
 		if (/^\-\-\-\s*$/) {
@@ -38,9 +40,11 @@ sub markdownfile(@) {
 			$title =~ s/"$//;
 		} elsif (/^date:\s+"(\d\d\d\d\-\d\d\-\d\d)/) {
 			$date = $1;
+		} elsif (/^draft:\s+true/ || /^index:\s+false/) {
+			$draft = 1;
 		}
 	}
-	if (length($title) > 0  &&  length($date) > 0) {
+	if ($draft == 0  &&  length($title) > 0  &&  length($date) > 0) {
 		printf("%d. %s: [%s](%s%s)\n",++$cnt,$date,$title,$prefix,substr($f,0,-3));
 	}
 	close(F) || die("Cannot close $f");
@@ -50,10 +54,11 @@ print <<EOS;
 ---
 title: "$mdtitle"
 date: "$year-12-31 23:55:00"
-draft: false
+description: "List of all posts in the year $year"
 ---
 
 EOS
+
 
 while (<@ARGV>) {
 	#printf("ARGV=|%s|\n",$_);
