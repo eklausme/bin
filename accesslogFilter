@@ -30,38 +30,52 @@ use FindBin;
 use lib $FindBin::Bin;
 use accesslogFilterIPs;
 
-my %errorCode = ( 301 => 0, 302 => 0, 303 => 0, 400 => 0, 403 => 0, 404 => 0, 405 => 0, 500 => 0, 501 => 0, 503 => 0, 505 => 0 );
+my %errorCode = (
+	301 => 0, 302 => 0, 303 => 0,
+	400 => 0, 403 => 0, 404 => 0, 405 => 0, 444 => 0, 499 => 0,
+	500 => 0, 501 => 0, 503 => 0, 505 => 0
+);
 my %bots = (
 	'{jndi' => 0, '+centuryb.o.t9[at]gmail.com' => 0, '+qwantbot' => 0, '100101' => 0,
 	'360spider' => 0, '7siters' => 0, adsbot => 0, 'adsbot.html' => 0, adscanner => 0,
+	adstxtbot => 0,
 	aggregage => 0, ahrefsbot => 0, ahrefssiteaudit => 0,
-	'ai2bot-dolma' => 0, aiohttp => 0, akkoma => 0, aliyunsecbot => 0, amazonbot => 0,
+	'ai2bot-dolma' => 0, aiohttp => 0, akkoma => 0, aliyunsecbot => 0, algemeneverkennerbot => 0, amazonbot => 0,
 	anderspinkbot => 0, antbot => 0, anthill => 0, 'apache-httpclient' => 0,
-	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0, aria2 => 0, 'arquivo-web-crawler' => 0,
-	atomseobot => 0, autobot => 0, awariobot => 0, awariosmartbot => 0, axios => 0, 'azureai-searchbot' => 0,
+	'appengine-google' => 0, applebot => 0, 'archive.org_bot' => 0, archivebot => 0, aria2 => 0, 'arquivo-web-crawler' => 0,
+	'athena-spider' => 0, atomseobot => 0, autobot => 0, awariobot => 0, awariosmartbot => 0, axios => 0, 'azureai-searchbot' => 0,
 	backlinksextendedbot => 0, badgecrawler => 0, baiduspider => 0, 'baiduspider-render' => 0, barkrowler => 0, bash => 0,
+	'beansllm-corpusbot' => 0,
 	bdbot => 0, beskuttlebot => 0, biggo => 0, bingbot => 0, bingpreview => 0,
-	bitsightbot => 0, blexbot => 0, 'bnf.fr_bot' => 0, bot => 0, 'br-crawler' => 0,
-	brandisbot => 0, bravebot => 0, 'browse-crawler' => 0, browserbuddy => 0, buddybot => 0, bun => 0, buttonbot => 0, bytespider => 0,
+	bitsightbot => 0, blexbot => 0, bloggerbot => 0, blogspider => 0, 'bnf.fr_bot' => 0, bot => 0, 'br-crawler' => 0,
+	brandisbot => 0, bravebot => 0, brightbot => 0, briskbot => 0, 'browse-crawler' => 0, browserbuddy => 0,
+	bubblesbot => 0, buddybot => 0, bun => 0, buttonbot => 0, bytespider => 0,
 	cc_bot => 0, ccbot => 0, censysinspect => 0, cfnetwork => 0, 'chatglm-spider' => 0, chatgpt => 0, 'chatgpt-user' => 0,
 	chawan => 0, 'chrome-lighthouse' => 0,
-	centurybot => 0, clashforwindows => 0, 'clark-crawler2' => 0, claudebot => 0, cleanbot => 0, clickagy => 0, cloudfront => 0,
-	'coccocbot-image' => 0, 'coccocbot-web' => 0, cocolyzebot => 0,
-	coibotparser => 0, colly => 0, cookieyesbot => 0, coolbot => 0, cortex => 0, cow => 0, 'cpp-httplib' => 0,
-	crawlbot => 0, crawler => 0, crawler2 => 0, 'crawler.php' => 0, crawlspace => 0,
+	centurybot => 0, 'cert-crawler' => 0, clashforwindows => 0, 'clark-crawler2' => 0,
+	claudebot => 0, cleanbot => 0, clickagy => 0, cloudfront => 0,
+	'clueweb-crawler' => 0, 'coccocbot-image' => 0, 'coccocbot-web' => 0, cocolyzebot => 0,
+	coibotparser => 0, colly => 0, cookieyesbot => 0, coolbot => 0, coreresearchbot => 0, coreautopdfpretrainingbot => 0,
+	cortex => 0, cow => 0, 'cpp-httplib' => 0,
+	'com.google.android.googlequicksearchbox' => 0, 'com.google.googlemobile' => 0,
+	cragcrawler => 0, crawlbot => 0, crawler => 0, crawler2 => 0, 'crawler.php' => 0, crawlspace => 0,
 	crimson => 0, criteobot => 0, crossrefeventdatabot => 0, curl => 0, cyberfindcrawler => 0,
+	databankmetasearchproduction => 0, 'dataio-crawler' => 0,
 	dareboost => 0, dart => 0, dataforseobot => 0, dbpoweramp => 0, ddg_win => 0, deref => 0, detection => 0,
 	'dingtalkbot-linkservice' => 0,
-	diffbot => 0, 'digitaleyes.ai' => 0, discordbot => 0, dmbot => 0, docoloc => 0,
+	diffbot => 0, 'digitaleyes.ai' => 0, discordbot => 0, dmbot => 0, dnscrawler => 0, docoloc => 0,
 	domaincrawler => 0, domainstatsbot => 0, dotbot => 0, down => 0,
 	duckassistbot => 0, duckduckbot => 0, duckduckgo => 0, 'duckduckgo-favicons-bot' => 0,
-	'easy-feed-oven' => 0, entferbot => 0, envelbot => 0, ermacaz => 0, 'ev-crawler' => 0, everyonesocialbot => 0,
-	exabot => 0, example3 => 0, expanse => 0, 'expo-research-bot' => 0,
+	'easy-feed-oven' => 0, entferbot => 0, envelbot => 0, ermacaz => 0, etherdeckbot => 0,
+	'ev-crawler' => 0, everyonesocialbot => 0,
+	exabot => 0, example3 => 0, exasearchbot => 0, expanse => 0, 'expo-research-bot' => 0,
 	facebookexternalhit => 0, facebookplatform => 0, faraday => 0, fasthttp => 0, fedistatscrawler => 0, feedi => 0,
-	'feedsearch-crawler' => 0, feedspot => 0, 'fidget-spinner-bot' => 0, fikabot => 0,
-	'flat-crawler' => 0, flipboardproxy => 0, fluid => 0, flyriverbot => 0,
+	'feedsearch-crawler' => 0, feedspot => 0, 'fidget-spinner-bot' => 0, fikabot => 0, findisebot => 0,
+	'flat-crawler' => 0, flipboardproxy => 0, flowiqlabsbot => 0, fluid => 0, flyriverbot => 0,
+	focusedsearchbot => 0, fogbot => 0, forestman => 0,
 	friendica => 0, friendlycrawler => 0, friendly_crawler => 0, 'friendly-spider' => 0,
-	fuzz => 0, 'fyndsearchengine-crawler' => 0, 'fyndsearchengine-recrawler' => 0,
+	fuzz => 0, fyndbot => 0,
+	'fyndsearchengine-crawler' => 0, 'fyndsearchengine-pagemediafetcher' => 0, 'fyndsearchengine-recrawler' => 0,
 	gaisbot => 0, 'gdnplus.com' => 0, geedobot => 0, genomecrawlerd => 0, gigablastopensource => 0,
 	'github-camo' => 0, globalbot => 0, gnu => 0, 'go-http-client' => 0,
 	google => 0, 'google-display-ads-bot' => 0, 'google-lens' => 0,
@@ -72,62 +86,71 @@ my %bots = (
 	headlesschrome => 0, hearsaysocialsummarizerbot => 0, hello => 0,
 	'help.qwant.com' => 0, 'hkfl-bot' => 0, 'http.rb' => 0, hubblebot => 0,
 	iaskspider => 0, iboubot => 0, iceshrimp => 0, iframely => 0, imagesiftbot => 0, imagespider => 0, img2dataset => 0,
-	indiesearchbot => 0, infotigerbot => 0, infrawatch => 0, inoreader => 0,
+	indiesearchbot => 0, 'inetdex-bot' => 0, infotigerbot => 0, infrawatch => 0, inoreader => 0,
 	instapaper => 0, internetmeasurement => 0, interrobot => 0, ioncrawl => 0, iustus => 0,
 	'ivre-masscan' => 0,
-	java => 0, 'java-http-client' => 0, jsacrawlerbot => 0, jsscanner => 0,
-	k7mlwcbot => 0, 'kagi-fetcher' => 0, kagibot => 0, 'keydrop.io' => 0, 'keys-so-bot' => 0, 'kirkland-signature' => 0, krowl => 0,
-	l9explore => 0, l9scan => 0, l9tcpid => 0, 'libwww-perl' => 0, liferea => 0, lighthouse => 0, linerbot => 0, linespider => 0,
+	java => 0, 'java-http-client' => 0, jsacrawlerbot => 0, jscrawler => 0, jsscanner => 0,
+	k7mlwcbot => 0, 'kagi-fetcher' => 0, kagibot => 0, 'keydrop.io' => 0, 'keys-so-bot' => 0,
+	'kirkland-signature' => 0, konwkbot => 0, krowl => 0,
+	l9explore => 0, l9scan => 0, l9tcpid => 0, 'libwww-perl' => 0, liferea => 0, lighthouse => 0, lightpanda => 0,
+	linerbot => 0, linespider => 0,
 	linkdexbot => 0, linkedinbot => 0, 'linkfluence.com' => 0, linuxgetur1 => 0, livelapbot => 0, 'loader.io' => 0, ltx71 => 0,
-	malwarescanner => 0, masscan => 0, 'masscan-ng' => 0, mastodon => 0, 'mattermost-bot' => 0,
+	lytharseadrotspider => 0,
+	magentocrawler => 0,
+	malwarescanner => 0, masscan => 0, 'masscan-ng' => 0, mastodon => 0, mathpicdatasetcrawler => 0, 'mattermost-bot' => 0,
 	mediapartners => 0, 'mediapartners-google' => 0, mediatoolkitbot => 0, megaindex => 0,
 	'meta-externalagent' => 0, 'meta-externalfetcher' => 0, 'meta-webindexer' => 0, metainspector => 0,
+	'mistralai-user' => 0, mistralbot => 0,
 	mindupbot => 0, mj12bot => 0, mjbot => 0, modabot => 0, mojeekbot => 0, mozila => 0, mozilliqa => 0, mozlila => 0, mrgbot => 0,
 	msnbot => 0, 'msnbot-media' => 0, mugshotbot => 0, mycrawler => 0,
 	neevabot => 0, netcraft => 0, netcraftsurveyagent => 0, netestate => 0, netpeakcheckerbot => 0,
 	'netsystemsresearch.com' => 0, 'networkcartographer' => 0, networkingextension => 0,
-	newspaper => 0, newspaperjs => 0, 'nextcloud-news' => 0, nicecrawler => 0,
-	ninjbot => 0, node => 0, 'node-fetch' => 0, nuclei => 0, nuggetsbot => 0, nushell => 0, nvdorz => 0, nzbget => 0,
+	newspaper => 0, newspaperjs => 0, 'nextcloud-news' => 0, nicecrawler => 0, nichestuffbot => 0,
+	ninjbot => 0, node => 0, 'node-fetch' => 0, nopubsearchbot => 0, nuclei => 0, nuggetsbot => 0, nushell => 0, nvdorz => 0, nzbget => 0,
 	'oai-searchbot' => 0, odin => 0, okhttp => 0, onalyticabot => 0, opengraphnet => 0,
 	'openai image downloader' => 0, opentheboxbot => 0, owler => 0,
 	pageslinger => 0, perplexity => 0, perplexitybot => 0, petalbot => 0, photon => 0, phxbot => 0,
 	pingdompagespeed => 0, pinterestbot => 0, pleroma => 0,
 	pocketimagecache => 0, pocketparser => 0, popsicle => 0, priberambot => 0, 'project-resonance' => 0,
-	proximic => 0, 'pulsepoint-ads.txt-crawler' => 0,
+	proximic => 0, publicwwwbot => 0, 'pulsepoint-ads.txt-crawler' => 0,
 	'python-httpx' => 0, 'python-requests' => 0, 'python-urllib' => 0, 'python-urllib3' => 0,
 	'qi ye wei xin' => 0, 'quic-go-http' => 0, quillbot => 0, 'quillbot.com' => 0, 'quora-bot' => 0,
 	qwantify => 0, 'qwantify-prod' => 0, 'qwantify-prod30291' => 0,
-	rankabot => 0, rankmathapi => 0, rasabot => 0, 'rawweb-bot' => 0, 'redbot.org' => 0, redekenbot => 0,
+	'raithe-crawler' => 0, rankabot => 0, rankmathapi => 0, rasabot => 0, 'rawweb-bot' => 0, 'redbot.org' => 0, redekenbot => 0,
 	reeder => 0, regionalbot => 0, 'repology-linkchecker' => 0, req => 0,
-	research => 0, 'restclient-cpp' => 0, rivva => 0, rome => 0, ruby => 0,
-	saashub => 0, sabsimbot => 0, 'scanner.ducks.party' => 0, scaninfo => 0, scannerbot => 0, scrapy => 0, screaming => 0,
-	'search.marginalia.nu' => 0, searplbot => 0, 'sebot-wa' => 0, seekportbot => 0, semanticbot => 0,
-	seamus => 0, semrushbot => 0, 'semrushbot-ba' => 0, seobilitybot => 0, seocompany => 0, seokicks => 0,
+	research => 0, 'restclient-cpp' => 0, rivva => 0, robot => 0, rome => 0, ruby => 0,
+	saashub => 0, sabsimbot => 0, 'scanner.ducks.party' => 0, scaninfo => 0, scannerbot => 0, scoutcrawler => 0, scrapy => 0, screaming => 0,
+	'search.marginalia.nu' => 0, searchbot => 0, searplbot => 0, 'sebot-wa' => 0, seekportbot => 0, semanticbot => 0,
+	seamus => 0, 'search-engine-crawler' => 0, semrushbot => 0, 'semrushbot-ba' => 0, 'semrushbot-si' => 0,
+	seobilitybot => 0, seocompany => 0, 'seojuice-searchbot' => 0, seokicks => 0,
 	seolyt => 0, seositecheckup => 0, seoulbot => 0, serankingbacklinksbot => 0,
-	serendeputybot => 0, seznambot => 0, shiroyagicrawler => 0, simpleanalyticsbot => 0, siteauditbot => 0, sitecheckerbotcrawler => 0,
+	serendeputybot => 0, seznambot => 0, shapbot => 0, shiroyagicrawler => 0,
+	simpleanalyticsbot => 0, siteauditbot => 0, sitecheckerbotcrawler => 0,
 	sitelockspider => 0, sitesucker => 0,
 	slackbot => 0, 'slackbot-linkexpanding' => 0, 'slack-imgproxy' => 0,
-	sleepbot => 0, sleuth => 0, slurp => 0, slut => 0, slaylybot => 0,
+	sleepbot => 0, sleuth => 0, 'slickbot-web' => 0, slurp => 0, slut => 0, slaylybot => 0,
 	socialbeeagent => 0, smtbot => 0, spacecowboys => 0,
 	spider => 0, spider_bot => 0, spiderbot => 0, spiderling => 0,
 	'statista.com' => 0, 'statping-ng' => 0, stormcrawler => 0, stractbot => 0,
 	substackcontentfetch => 0, summalybot => 0, superegobot => 0, surdotlybot => 0,
 	swan => 0, swisscows => 0, symfony => 0, synapse => 0, synologychatbot => 0,
-	tchelebi => 0, terracota => 0, 'test-bot' => 0, temboz => 0, tenmilliondomainsbot => 0, thinkbot => 0, thumbor => 0,
+	tchelebi => 0, terracota => 0, 'test-bot' => 0, testsearchspider => 0,
+	temboz => 0, tenmilliondomainsbot => 0, thinkbot => 0, thumbor => 0,
 	tigerbot => 0, tiktokspider => 0, timpibot => 0, tinytestbot => 0, trafilatura => 0,
 	trendiction => 0, trendictionbot => 0, trendsmapresolver => 0,
 	turnitin => 0, turnitinbot => 0, tweetmemebot => 0, twingly => 0, twitterbot => 0, typhoeus => 0,
 	ucrawl => 0, ultimatebot => 0, 'um-ln' => 0, undici => 0, ureq => 0, urlbot => 0,
-	'validator.nu' => 0, veryhip => 0, 'vexelbot-1' => 0, vexelsearchbot => 0, virustotal => 0, vorebot => 0, vsusearchspider => 0,
-	w3c_validator => 0, w3c_css_validator_jfouffa => 0, wanscannerbot => 0, 'web-archiving' => 0,
-	webcrawlbot => 0, webcrawler => 0, 'web-crawler' => 0, webexteams => 0, 'webmeup-crawler' => 0,
-	'webpage-rs' => 0, webprosbot => 0, 'webpros.com' => 0, 'website-info.net-robot' => 0, 'website-logo' => 0,
+	'validator.nu' => 0, veryhip => 0, 'vexelbot-1' => 0, 'vexelsearchbot-1' => 0, vexelsearchbot => 0, virustotal => 0, vorebot => 0, vsusearchspider => 0,
+	w3c_validator => 0, w3c_css_validator_jfouffa => 0, wanscannerbot => 0, 'web-archiving' => 0, 'web-crawler' => 0,
+	webcrawlbot => 0, webcrawler => 0, webotbot => 0, webexteams => 0, 'webmeup-crawler' => 0,
+	'webpage-rs' => 0, webprosbot => 0, 'webpros.com' => 0, webrevivebot => 0,
+	'webring-crawler' => 0, 'website-info.net-robot' => 0, 'website-logo' => 0,
 	websusebot => 0, webtech => 0, webzip => 0,
 	wepchsearchengine => 0, wget => 0, whatcms => 0, wibybot => 0, wirereaderbot => 0,
 	woorankreview => 0, 'wordupsearchengine-1' => 0, wpbot => 0,
 	'wp-safe-scanner' => 0, 'wp-safe-scanner-2025' => 0, wrtnbot => 0, wubbacrawl => 0,
 	'x-fb-crawlerbot' => 0, xfa1 => 0, xing => 0,
-	'y!j-wsc' => 0, yacybot => 0,
+	'y!j-wsc' => 0, yacybot => 0, yadirectfetcher => 0,
 	yandexbot => 0, yandexaccessibilitybot => 0, yandexfavicons => 0, yandeximageresizer => 0, yandeximages => 0, yandexmetrika => 0,
 	yandexmobilebot => 0, yandexnews => 0, yandexrenderresourcesbot => 0, yellowspider => 0, yeti => 0, yisouspider => 0, youbot => 0,
 	zgrab => 0, zombiebot => 0, zoombot => 0,
@@ -181,7 +204,7 @@ my %userAgent_Unused = (
 #   6. referer
 #   7. user agent
 
-my ($sumTotal, $sumClassA, $sumClassB, $sumClassC, $sumIP, $sumErrC, $sumBots, $sumSpamReferrers, $sumDomain, $sumGood) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+my ($sumTotal, $sumClassA, $sumClassB, $sumClassC, $sumIP, $sumErrC, $sumBots, $sumSpamReferrer, $sumDomain, $sumGood) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 W: while (<>) {
 	s/\x00//g;	# for whatever reasons we do find hex 00 in the log
@@ -208,7 +231,7 @@ W: while (<>) {
 	}
 	if ($F[5] eq '-' && $F[4] =~ /(GET|POST) \/[\-\.\w]+\/[\-\.\w]+\S+ HTTP\/1\.[0-1]/) { ++$emptyReferer; next; }
 	for ( split(/[ :;,\/\(\)\@\$]/,lc $F[5]) ) {
-		if (defined($spamReferrer{$_})) { ++$sumSpamReferrers; $spamReferrer{$_} += 1; next W; } 	# skip spam referrers
+		if (defined($spamReferrer{$_})) { ++$sumSpamReferrer; $spamReferrer{$_} += 1; next W; } 	# skip spam referrers
 	}
 	if ($F[4] =~ /GET (\/[^ ]+) HTTP/) {
 		my $url = $1;
@@ -265,6 +288,11 @@ if (defined($statout)) {
 		next if ($domain{$_} == 0);
 		#$sumDomain += $domain{$_};
 		printf(F "domain\t%d\t%.4f\t%.4f\t%.4f\t%s\n", $domain{$_}, 100 * $domain{$_} / $sumGood, 100 * $domain{$_} / $sumTotal, 100 * $domain{$_} / $sumDomain, $_);
+	}
+	for (sort keys %spamReferrer) {
+		next if ($spamReferrer{$_} == 0);
+		#$sumDomain += $domain{$_};
+		printf(F "spamReferrer\t%d\t%.4f\t%.4f\t%.4f\t%s\n", $spamReferrer{$_}, 100 * $spamReferrer{$_} / $sumGood, 100 * $spamReferrer{$_} / $sumTotal, 100 * $spamReferrer{$_} / $sumSpamReferrer, $_);
 	}
 
 	printf(F "badURL\t%d\t%.4f\t%.4f\n",$badURL, 100 * $badURL / $sumGood, 100 * $badURL / $sumTotal);
