@@ -1,5 +1,6 @@
 #!/bin/perl -W
-# Count number of times a URL was hit. Input is Hiawatha access log file.
+# Count number of times a URL was hit. Input is Hiawatha-like access log file.
+# NGINX access log file works as well, just change log-format.
 # Show tabular results using Datatables JavaScript, show bar charts via Apache ECharts.
 #
 # Hiawatha log format:
@@ -16,10 +17,18 @@
 # Elmar Klausmeier, 29-Mar-2022: Tooltips in ECharts, factored out JS to reduce size
 # Elmar Klausmeier, 25-Aug-2022: Filter illegal HTML chars
 # Elmar Klausmeier, 03-Dec-2022: Filter \r from URL
+# Elmar Klausmeier, 24-Oct-2023: Aggregate according protocol
+# Elmar Klausmeier, 27-Jun-2024: Limit output to entries with at least m visits
+# Elmar Klausmeier, 28-Oct-2024: Added function fmt1000
 
 use strict;
 use Time::Local;
 use POSIX qw(strftime);
+use Getopt::Std;
+
+my %opts = ('m' => 0);
+getopts('m:',\%opts);
+my $minVisit = defined($opts{'m'}) ? $opts{'m'} : 1;
 
 my $nx = 0;	# number of entries in ecoption[] array
 my %monthNum = (
@@ -29,18 +38,21 @@ my %monthNum = (
 );
 my %H;	# hash: method+URL+protocol is key
 my %hist;	# histogram: year+week is key, currently not used
+my $dt = strftime("%F %T",localtime());	# only for printing
 
 
 print << "EOF";
+<!doctype html>
 <html>
-	<link href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAF7/cAumQHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABEREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" rel="icon" type="image/x-icon"/>
+	<title>URL Count</title>
+	<link href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABbklEQVQ4T2OUn/2+loGRoZqR4T87AwngPwPjT4b/DK2M8nPe/yBVM8wekCGMCnPe/SfBYgylKAYk67AzMCEp2ff4N4O+KAvDtz//GXY8+M1gKcnCoCHEzDD/6k+4KhQD7iQKMDAyMjD8h7qp6OBXhgx9DoZX3/4zJOz8wrDMk4eBn52RwXvDZ9wGgExvPfUdrmBbIC/YgKojXxkOhvEzzLz0g6Hn7A/SDPj48z/Dz7//GcwlWBmc1nxkeP4VEWwYXgB6l+EnkJh75QfDpAs/GUAu0BRiYfgH9FfZoa8Ma+/8RglIDAMuvfnLcPTZb4aTz/8wHHn2B8WAEqAB6wkZgC0MQF74/ZeBwUSChcFp9UeGF8AwgQEMF+AKxNpjXxn2h/AzTAcGYi++QMQXjSu8eBh42fBEY7ouOzgdwMDeR78ZDKAJaev93wzWUiwMWsCENPsKjoRETpKmPDOBsjPQ2dXABExSdmYA5kRg0mgFAI5W3Y01yGITAAAAAElFTkSuQmCC" rel="icon" type="image/x-icon">
 
-	<link href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css" rel=stylesheet />
+	<link href="https://cdn.datatables.net/3.0.4/css/dataTables.dataTables.min.css" rel=stylesheet />
 	<style>
 		.histogram { height:400px; width:400px; }
 	</style>
 <body>
-<h1>URL Count</h1>
+<h1>URL Count $dt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (<a href=/statcnt.html>uncount</a>)</h1>
 <table id="urlcnt" class="display"></table>
 <table><thead><tr><th>Year<th>Month<th>Week
 	<tbody><tr>
@@ -51,11 +63,10 @@ print << "EOF";
 </body>
 
 <!-- Datatables -->
-<script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.js"></script>
-<script type="text/javascript" src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/3.0.4/js/dataTables.min.js"></script>
 
 <!-- Apache ECharts -->
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts\@5.3.3/dist/echarts.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
 
 <script type="text/javascript">
 function d(i) {	// we keep this function name short as it is used thousands of times in HTML table
@@ -119,28 +130,41 @@ sub cntInH(@) {
 	}
 }
 
+sub fmt1000(@) {	# thousand's formating
+	# Perl printf to use commas as thousands-separator:
+	# stackoverflow.com/questions/33442240 + perlmonks.org?node_id=1035411
+	return scalar reverse(join(',', (unpack('(A3)*',reverse $_[0]))));
+}
+
 
 while (<>) {
 	my @F = split /\|/;
-	next if ($#F < 4);	# need URL at least
-	next if ($F[2] eq '414' || $F[2] =~ /5\d\d/);	# these records cannot be processed
+	next if ($#F < 5);	# need URL at least, assert that referer is also there
+	next if ($F[2] =~ /(4|5)\d\d/);	# these records cannot be processed
 	$F[4] =~ s/\r//g;	# strip \r
-	my ($wday,$day,$monthName,$year,$hms,$dl) = split(/ /,$F[1]);
+	# Original Hiawatha log-format: my ($wday,$day,$monthName,$year,$hms,$dl) = split(/ /,$F[1]);
+	my ($day,$monthName,$year,$hour,$minute,$second,$dl) = split(/:|\/| /,$F[1]);
 	my $month = $monthNum{$monthName};
 	my $epoch = timelocal( 0, 0, 0, $day, $month-1, $year-1900 );
 	my $week  = strftime("%U",localtime($epoch));
 	my ($yearweek,$yearmonth) = ("$year/$week","$year/$month");
 	$hist{$yearweek} += 1;	# not used
 	# Special handling for Elmar Klausmeier's blog
-	$F[4] =~ s/^GET \/(aux|blog|jpilot|music|gallery|koehntopp|mobility|nukeklaus|saaze-example)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
+	$F[4] =~ s/^GET \/(aux|blog|jpilot|music|gallery|lemire|koehntopp|mobility|myrawest|paternoster|panorama|nukeklaus|saaze-example|wendt)(.*)\/ /GET \/$1$2 /;	# drop trailing slash in /blogXXX/ or /musicXXX/, etc.
 	cntInH($F[3],$F[4],$year,$yearmonth,$yearweek);
-	my $aggrF4 = $F[4];
-	$aggrF4 =~ s/^(\w+) \/([^\/]+)([^ ]*) (\w+)\/([\.\-\w]+)/aMth $2 aPrt/;
-	cntInH($F[3],$aggrF4,$year,$yearmonth,$yearweek);
+	my ($aggrF4prt,$aggrF4mthp) = ($F[4],$F[4]);
+	$aggrF4prt =~ s/^(\w+) ([^ ]+) (\w+)\/([\.\-\w]+)/$1 $2 aPrt/;	# aggregate according protocol only
+	cntInH($F[3],$aggrF4prt,$year,$yearmonth,$yearweek);
+	$aggrF4mthp =~ s/^(\w+) \/([^\/]+)([^ ]*) (\w+)\/([\.\-\w]+)/aMth $2 aPrt/;	# aggregate according method+protocol
+	cntInH($F[3],$aggrF4mthp,$year,$yearmonth,$yearweek);
 }
 
 for my $f4 (keys %H) {
+	next if ($H{$f4}[0] < $minVisit);
 	my ($meth,$url,$prot) = split(/ /,$f4);
+	$meth = 'unknown' if (!defined($meth));
+	$meth = 'unknown' if ($meth !~ /\w+/);	# cope for stuff like '\x16\x03\x01\x00u\x01...'
+	$url = 'unknown' if (!defined($url));
 	$prot = 'unknown' if (!defined($prot));
 	$url =~ s/'/&#39;/g;
 	$url =~ s/"/&#34;/g;
@@ -150,18 +174,17 @@ for my $f4 (keys %H) {
 	$url =~ s/\\/&#92;/g;
 	$url =~ s/\?/&#63;/g;
 	my $displayURL = (length($url) > 95) ? substr($url,0,90).'...'.substr($url,-5) : $url;
-	# Perl printf to use commas as thousands-separator:
-	# stackoverflow.com/questions/33442240 + perlmonks.org?node_id=1035411
-	my $size = scalar reverse(join(',', (unpack('(A3)*',reverse $H{$f4}[1]))));
-	printf("\t['<a href=\"#\" onclick=\"return d(%d);\">%d</a>','%s','%s','%s','<a href=\\\".%s\\\">%s</a>'],\n",
-		$H{$f4}[5],$H{$f4}[0],$size,$meth,$prot,$url,$displayURL);
+	my $size = fmt1000( $H{$f4}[1] );
+	printf("\t['<a href=\"#\" onclick=\"return d(%d);\">%s</a>','%s','%s','%s','<a href=\\\".%s\\\">%s</a>'],\n",
+		$H{$f4}[5],fmt1000($H{$f4}[0]),$size,$meth,$prot,$url,$displayURL);
 }
 printf("];\n\n");
 
 #my $pH = \$H{'GET /blog/ HTTP/1.1'};
 #printf("// length=%d, |%s|\n",$#{$$pH},$$pH->[2][0][0]);
-for my $murlp (keys %H) {
-	my $pH = \$H{$murlp};
+for my $f4 (keys %H) {
+	next if ($H{$f4}[0] < $minVisit);
+	my $pH = \$H{$f4};
 	my $i3 = 3 * $$pH->[5];
 	for (my $j=0; $j<3; ++$j) {
 		printf("ecoption[%d] = {\n"
@@ -185,8 +208,7 @@ for my $murlp (keys %H) {
 
 print << "EOF";
 
-\$(document).ready(function() {
-	\$('#urlcnt').DataTable( {
+new DataTable('#urlcnt', {
 	data: urlFrequency,
 	columns: [
 		{ title: "Hits" },
@@ -196,9 +218,8 @@ print << "EOF";
 		{ title: "URL" }
 	],
 	order: [[ 0, "desc" ]],
-	lengthMenu: [ 10, 20, 50, 100, 150, -1 ],
+	lengthMenu: [ 10, 20, 30, 40, 50, 100, 150, -1 ],
 	columnDefs: [ { targets: 1, className: 'dt-body-right' } ]
-	} );
 } );
 
 // Apache ECharts
